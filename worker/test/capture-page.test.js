@@ -26,4 +26,11 @@ describe('capturePage', () => {
     expect(result.siteName).toBe('Maison Test');
     expect(result.finalUrl).toBe(fixture('newsletter-modal.html'));
   });
+
+  it('should return the design analysis of the page', async () => {
+    const result = await capturePage(browser, fixture('design-sample.html'));
+
+    expect(result.analysis.colors.primary).toBe('#0069ff');
+    expect(result.analysis.typography.display.fontSize).toBe('64px');
+  });
 });

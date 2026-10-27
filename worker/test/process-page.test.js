@@ -8,6 +8,7 @@ const captured = {
   pageTitle: 'Pricing | A',
   finalUrl: 'https://a.com/pricing',
   warnings: ['1 popup(s) masquée(s) sans bouton de fermeture'],
+  analysis: { version: 1, colors: { primary: '#0069ff' } },
 };
 
 function fakes({ captureResults = [captured], uploadError } = {}) {
@@ -49,6 +50,7 @@ describe('processPage', () => {
       final_url: 'https://a.com/pricing',
       thumbnail_path: 'abc.jpg',
       capture_warnings: captured.warnings,
+      analysis: captured.analysis,
       error: null,
     });
     expect(new Date(fields.captured_at).toISOString()).toBe(fields.captured_at);

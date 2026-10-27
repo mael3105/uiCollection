@@ -1,5 +1,6 @@
 import { cleanPage } from './clean-page.js';
 import { trackRequests } from './network-quiet.js';
+import { analyzePage } from './analyze-page.js';
 import { extractSiteName } from './site-name.js';
 
 const CONTEXT = {
@@ -44,6 +45,10 @@ async function run(page, url, timeoutMs) {
   }));
   const finalUrl = page.url();
   const jpeg = await page.screenshot({ type: 'jpeg', quality: 80, animations: 'disabled' });
+  // Une analyse ratée ne coûte pas la vignette
+  let analysis = null;
+  try { analysis = await analyzePage(page); }
+  catch (err) { warnings.push(`analyse impossible : ${String(err?.message ?? err).split('\n')[0]}`); }
 
   return {
     jpeg,
@@ -51,5 +56,6 @@ async function run(page, url, timeoutMs) {
     pageTitle: meta.title,
     finalUrl,
     warnings,
+    analysis,
   };
 }

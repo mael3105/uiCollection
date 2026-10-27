@@ -14,6 +14,7 @@ export async function processPage(row, { capture, upload, update, maxAttempts = 
         final_url: result.finalUrl,
         thumbnail_path: path,
         capture_warnings: result.warnings,
+        analysis: result.analysis ?? null,
         error: null,
         captured_at: new Date().toISOString(),
       });
