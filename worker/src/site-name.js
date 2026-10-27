@@ -1,4 +1,4 @@
-const SEPARATORS = / \| | - | — | · /;
+const SEPARATORS = / \| | - | – | — | · /;
 
 export function extractSiteName({ ogSiteName, applicationName, title, hostname }) {
   for (const candidate of [ogSiteName, applicationName]) {

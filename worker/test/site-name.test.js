@@ -13,6 +13,7 @@ describe('extractSiteName', () => {
   it('should take the shortest title segment', () => {
     expect(extractSiteName({ title: 'Tarifs et forfaits complets — Notion', hostname: 'www.notion.so' })).toBe('Notion');
     expect(extractSiteName({ title: 'Hôtel Particulier · Accueil', hostname: 'h.fr' })).toBe('Accueil');
+    expect(extractSiteName({ title: 'Tarifs détaillés – Linear', hostname: 'linear.app' })).toBe('Linear');
   });
 
   it('should fall back to the hostname without www', () => {
