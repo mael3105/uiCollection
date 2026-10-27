@@ -37,9 +37,16 @@
         <div class="bar-tools">
           <label class="visually-hidden" for="search">Rechercher</label>
           <input id="search" type="search" placeholder="Rechercher un site, une URL">
-          <button id="logout" type="button" class="btn-quiet">Se déconnecter</button>
+          <details class="menu account">
+            <summary aria-label="Compte"><span id="account-initial" class="account-initial"></span></summary>
+            <div class="menu-panel">
+              <p id="account-email" class="account-email"></p>
+              <button id="logout" type="button">Se déconnecter</button>
+            </div>
+          </details>
         </div>
       </div>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     </header>
 
     <main class="sheet">
@@ -53,6 +60,5 @@
     </main>
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

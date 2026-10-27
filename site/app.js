@@ -43,7 +43,7 @@ if (shared) {
 
 // supabase-js déconseille d'appeler le client dans ce rappel : on sort de la pile d'abord.
 db.auth.onAuthStateChange((event, session) => {
-  setTimeout(() => (session ? start() : showLogin()), 0);
+  setTimeout(() => (session ? start(session) : showLogin()), 0);
 });
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -79,6 +79,51 @@ $('search').addEventListener('input', (e) => {
 
 $('grid').addEventListener('click', onGridClick);
 
+// Un seul menu ouvert à la fois ; un clic ailleurs ou Échap le referme.
+document.addEventListener('toggle', (e) => {
+  const menu = e.target;
+  if (!menu.matches?.('details.menu')) return;
+  if (menu.open) {
+    closeMenus(menu);
+  } else if (state.confirmDeleteId && menu.closest(`[data-id="${state.confirmDeleteId}"]`)) {
+    state.confirmDeleteId = null;
+    render();
+  }
+}, true);
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('details.menu') || e.target.closest('.menu-panel a')) closeMenus();
+});
+
+// Raccourcis : « / » pour rechercher, « A » pour ajouter une URL, Échap pour sortir.
+const hasKeyboard = matchMedia('(hover: hover) and (pointer: fine)').matches;
+if (hasKeyboard) {
+  $('search').placeholder = 'Rechercher un site, une URL   /';
+  $('add-url').placeholder = 'Coller une URL   A';
+}
+
+document.addEventListener('keydown', (e) => {
+  if ($('app').hidden) return;
+  if (e.key === 'Escape') {
+    const open = document.querySelector('details.menu[open]');
+    if (open) {
+      closeMenus();
+      open.querySelector('summary').focus();
+    } else if (document.activeElement?.matches('#search, #add-url')) {
+      document.activeElement.blur();
+    }
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, textarea, select, [contenteditable]')) return;
+  if (e.key === '/') {
+    e.preventDefault();
+    $('search').focus();
+  } else if (e.key === 'a' || e.key === 'A') {
+    e.preventDefault();
+    $('add-url').focus();
+  }
+});
+
 function showLogin() {
   state.started = false;
   state.pages = [];
@@ -91,15 +136,18 @@ function showLogin() {
   }
 }
 
-async function start() {
+async function start(session) {
   if (state.started) return;
   state.started = true;
+  const email = session.user.email ?? '';
+  $('account-email').textContent = email;
+  $('account-initial').textContent = email.charAt(0);
   $('login').hidden = true;
   $('app').hidden = false;
 
   const { data, error } = await db.from('pages').select('*').order('created_at', { ascending: false });
   if (error) {
-    toast(`Chargement impossible : ${error.message}`, true);
+    toast(`Chargement impossible : ${error.message}`, 'error');
   } else {
     state.pages = data;
   }
@@ -126,12 +174,12 @@ function subscribe() {
 async function addUrl(raw) {
   const url = raw.trim();
   if (!isHttpUrl(url)) {
-    toast("Cette adresse n'est pas une URL web (http ou https).", true);
+    toast("Cette adresse n'est pas une URL web (http ou https).", 'error');
     return false;
   }
   const { data, error } = await db.rpc('add_page', { p_url: url });
   if (error) {
-    toast(`Ajout impossible : ${error.message}`, true);
+    toast(`Ajout impossible : ${error.message}`, 'error');
     return false;
   }
   // L'URL partagée n'est oubliée qu'une fois enregistrée, quel que soit le chemin de l'essai
@@ -141,7 +189,8 @@ async function addUrl(raw) {
   const { data: row } = await db.from('pages').select('*').eq('id', id).single();
   if (row) upsertPage(row);
   highlight(id);
-  toast(isDuplicate ? 'Déjà dans la collection' : 'Ajoutée');
+  if (isDuplicate) toast('Déjà dans la collection');
+  else toast('Site ajouté', 'success');
   return true;
 }
 
@@ -177,7 +226,7 @@ async function onGridClick(e) {
   if (action === 'retry') {
     target.closest('details').open = false;
     const { error } = await db.from('pages').update({ status: 'pending', error: null }).eq('id', id);
-    if (error) toast(`Relance impossible : ${error.message}`, true);
+    if (error) toast(`Relance impossible : ${error.message}`, 'error');
     else toast('Capture relancée');
   } else if (action === 'ask-delete') {
     state.confirmDeleteId = id;
@@ -198,13 +247,15 @@ async function deletePage(id) {
   }
   const { error } = await db.from('pages').delete().eq('id', id);
   state.confirmDeleteId = null;
+  closeMenus();
   if (error) {
-    toast(`Suppression impossible : ${error.message}`, true);
+    render();
+    toast(`Suppression impossible : ${error.message}`, 'error');
     return;
   }
   removePage(id);
   render();
-  toast('Supprimée');
+  toast('Site supprimé');
 }
 
 async function refreshThumbnails() {
@@ -269,12 +320,20 @@ function cardHtml(p, isMenuOpen) {
   </li>`;
 }
 
+function closeMenus(except) {
+  for (const menu of document.querySelectorAll('details.menu[open]')) {
+    if (menu !== except) menu.open = false;
+  }
+}
+
 let toastTimer;
-function toast(message, isError = false) {
+/** @param {'info' | 'success' | 'error'} kind */
+function toast(message, kind = 'info') {
   const el = $('toast');
   el.textContent = message;
-  el.classList.toggle('is-error', isError);
+  el.classList.toggle('is-success', kind === 'success');
+  el.classList.toggle('is-error', kind === 'error');
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, isError ? 6000 : 3000);
+  toastTimer = setTimeout(() => { el.hidden = true; }, kind === 'error' ? 6000 : 3000);
 }

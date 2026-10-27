@@ -65,9 +65,17 @@ describe('filterPages', () => {
     expect(filterPages(rows, 'hotel').map((r) => r.id)).toEqual(['h1']);
   });
 
-  it('should match on URL and title', () => {
+  it('should match on URL', () => {
     expect(filterPages(rows, 'PRICING').map((r) => r.id)).toEqual(['s1']);
     expect(filterPages(rows, 'pending.io').map((r) => r.id)).toEqual(['p1']);
+  });
+
+  it('should ignore the page title, which the card does not show', () => {
+    expect(filterPages(rows, 'accueil')).toEqual([]);
+  });
+
+  it('should ignore the URL scheme, which the card does not show', () => {
+    expect(filterPages(rows, 'https')).toEqual([]);
   });
 
   it('should return everything for a blank query', () => {
