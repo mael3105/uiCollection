@@ -59,6 +59,12 @@
     </header>
 
     <main class="sheet">
+      <div id="site-bar" class="site-bar" hidden>
+        <button id="back-all" type="button" class="btn-quiet back">
+          <span aria-hidden="true">←</span> Toutes les pages
+        </button>
+        <h2 id="site-title" class="site-title"></h2>
+      </div>
       <p id="count" class="count"></p>
       <ul id="grid" class="grid"></ul>
       <div id="empty" class="empty" hidden>
@@ -69,5 +75,8 @@
     </main>
   </div>
 
+  <dialog id="detail" class="detail" aria-labelledby="detail-title"></dialog>
+  <datalist id="site-types"></datalist>
+  <datalist id="page-types"></datalist>
 </body>
 </html>

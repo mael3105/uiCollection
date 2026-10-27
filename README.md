@@ -22,6 +22,10 @@ En local, rien ne déclenche la capture : après avoir ajouté des URL, lancez `
 
 **Compte de connexion local.** Les inscriptions sont fermées : créez un utilisateur dans Studio → Authentication → Add user (cocher « Auto Confirm User »). Un `npx supabase db reset` efface la base locale, utilisateurs compris.
 
+## Mettre à jour le schéma en ligne
+
+Chaque fichier de `supabase/migrations/` s'applique une fois au projet distant, **avant** de pousser le code qui s'en sert : coller son contenu dans le SQL Editor de Supabase, ou lancer `npx supabase db push` depuis un Terminal connecté (`npx supabase login`, puis `npx supabase link`).
+
 ## Tests
 
 ```bash

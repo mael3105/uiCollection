@@ -40,6 +40,22 @@ describe('renderDesignMd', () => {
     ]);
   });
 
+  it('should restore the role and scale order that jsonb storage loses', () => {
+    const shuffled = {
+      ...analysis,
+      colors: { text: '#111114', border: '#ededec', primary: '#5a41f6', surface: '#ffffff', background: '#fafaf9' },
+      typography: { body: analysis.typography.body, display: analysis.typography.display, headline: analysis.typography.headline },
+      rounded: { md: '9px', sm: '6px', full: '9999px', lg: '16px' },
+      spacing: { md: '10px', xs: '4px', '2xl': '26px', sm: '8px' },
+    };
+    const fm = frontMatter(renderDesignMd({ ...page, analysis: shuffled }));
+
+    expect(Object.keys(fm.colors)).toEqual(['background', 'surface', 'text', 'primary', 'border']);
+    expect(Object.keys(fm.typography)).toEqual(['display', 'headline', 'body']);
+    expect(Object.keys(fm.rounded)).toEqual(['sm', 'md', 'lg', 'full']);
+    expect(Object.keys(fm.spacing)).toEqual(['xs', 'sm', 'md', '2xl']);
+  });
+
   it("should declare Do's and Don'ts as omitted rather than invent them", () => {
     const fm = frontMatter(renderDesignMd(page));
 

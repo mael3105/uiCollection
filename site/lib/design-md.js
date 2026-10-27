@@ -20,9 +20,31 @@ const TYPE_ROLES = {
   caption: 'petits textes, légendes',
 };
 
+const SCALE_ORDER = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', 'full'];
+const COMPONENT_ORDER = ['button-primary', 'button-secondary', 'input'];
+
+/** Clés dans l'ordre voulu ; Postgres (jsonb) les range par longueur puis alphabet. */
+export function ordered(obj = {}, order) {
+  const known = order.filter((k) => k in obj);
+  const rest = Object.keys(obj).filter((k) => !order.includes(k));
+  return Object.fromEntries([...known, ...rest].map((k) => [k, obj[k]]));
+}
+
+/** Analyse aux clés réordonnées, pour la fiche comme pour le fichier. */
+export function orderedAnalysis(a) {
+  return a && {
+    ...a,
+    colors: ordered(a.colors, Object.keys(COLOR_ROLES)),
+    typography: ordered(a.typography, Object.keys(TYPE_ROLES)),
+    rounded: ordered(a.rounded, SCALE_ORDER),
+    spacing: ordered(a.spacing, SCALE_ORDER),
+    components: ordered(a.components, COMPONENT_ORDER),
+  };
+}
+
 /** @param {object} page ligne de `pages` (avec `analysis` et les champs édités) */
 export function renderDesignMd(page) {
-  const a = page.analysis;
+  const a = orderedAnalysis(page.analysis);
   const name = page.display_name || page.site_name || hostOf(page.url);
   const front = {
     version: 'alpha',

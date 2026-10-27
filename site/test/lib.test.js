@@ -78,6 +78,10 @@ describe('filterPages', () => {
     expect(filterPages(rows, 'https')).toEqual([]);
   });
 
+  it('should match the corrected name', () => {
+    expect(filterPages([{ id: 'x', site_name: 'growthsystemes', display_name: 'Ontologie', url: 'https://g.com/' }], 'ontologie')).toHaveLength(1);
+  });
+
   it('should return everything for a blank query', () => {
     expect(filterPages(rows, '  ').length).toBe(rows.length);
   });

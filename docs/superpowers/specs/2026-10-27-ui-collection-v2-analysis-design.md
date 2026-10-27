@@ -36,6 +36,14 @@ Les pages d'un même domaine (sans `www.`) forment une pile dès qu'il y en a de
 - Lecture : capture, URL, palette, typographies, technologies, plan des titres, avertissements de capture ; DESIGN.md en aperçu avec « Copier » et « Télécharger ».
 - Actions : ouvrir le site, refaire la capture, supprimer.
 
+## Partage à des agents : pistes (non construites)
+
+1. **Export de sélection** : cocher des pages, télécharger un dossier (un DESIGN.md par page, les captures, un `INDEX.md` qui les présente). Le plus simple, marche avec tout agent.
+2. **Lien de planche en lecture seule** : une sélection nommée (« SaaS pricing sombres ») publiée à une adresse secrète, en Markdown + images, qu'on colle dans le prompt d'un agent qui sait lire le web.
+3. **Serveur MCP uiCollection** : une fonction Supabase qui expose `search_pages(type, style…)`, `get_design_md(id)`, `get_screenshot(id)` ; l'agent cherche lui-même ses références pendant qu'il conçoit.
+4. **Skill Claude Code** : « inspire-toi de ma collection » — le skill interroge la base (clé en lecture seule), choisit 3 à 5 références selon le brief et les cite dans le design produit.
+5. **Synthèse de planche** : une passe Claude qui fusionne plusieurs DESIGN.md en un « mood DESIGN.md » commun (palette, typo, règles), prêt à servir de base à une génération.
+
 ## Hors périmètre
 
 Proposition automatique de la typologie, captures mobiles, export pour agents (idées seulement).
