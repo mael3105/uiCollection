@@ -95,13 +95,8 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('details.menu') || e.target.closest('.menu-panel a')) closeMenus();
 });
 
-// Raccourcis : « / » pour rechercher, « A » pour ajouter une URL, Échap pour sortir.
-const hasKeyboard = matchMedia('(hover: hover) and (pointer: fine)').matches;
-if (hasKeyboard) {
-  $('search').placeholder = 'Rechercher un site, une URL   /';
-  $('add-url').placeholder = 'Coller une URL   A';
-}
-
+// Raccourcis (rappelés par les <kbd> des champs) : « / » pour rechercher,
+// « A » pour ajouter une URL, Échap pour sortir.
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden) return;
   if (e.key === 'Escape') {

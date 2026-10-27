@@ -147,9 +147,36 @@ body::before {
   gap: 12px 24px;
 }
 .add-form { display: flex; gap: 8px; min-width: 0; max-width: 440px; }
-.add-form input { flex: 1; }
+.add-form .field { flex: 1; }
+
+/* Touche de raccourci dans le champ : seulement avec un clavier, et tant que le champ est vide et inactif */
+.field { position: relative; display: flex; min-width: 0; }
+.field input { flex: 1; }
+.field-key {
+  display: none;
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--ground);
+  color: var(--ink-soft);
+  font: 500 12px/1.4 var(--font-body);
+  text-align: center;
+  pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .field-key { display: block; }
+  .field input { padding-right: 40px; }
+}
+.field input:focus + .field-key,
+.field input:not(:placeholder-shown) + .field-key { display: none; }
 .bar-tools { display: flex; gap: 8px; align-items: center; min-width: 0; }
-.bar-tools input { width: 240px; min-width: 0; }
+.bar-tools input { width: 280px; min-width: 0; }
 
 /* Planche */
 .sheet {
@@ -345,7 +372,8 @@ body::before {
   .bar-inner { grid-template-columns: minmax(0, 1fr) auto; }
   .add-form { grid-column: 1 / -1; grid-row: 2; }
   .bar-tools { display: contents; }
-  .bar-tools input { grid-column: 1 / -1; grid-row: 3; width: 100%; }
+  .bar-tools .field { grid-column: 1 / -1; grid-row: 3; }
+  .bar-tools input { width: 100%; }
   .account { grid-column: 2; grid-row: 1; }
   .add-form { max-width: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 28px 16px; }
