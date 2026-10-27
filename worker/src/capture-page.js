@@ -1,4 +1,5 @@
 import { cleanPage } from './clean-page.js';
+import { trackRequests } from './network-quiet.js';
 import { extractSiteName } from './site-name.js';
 
 const CONTEXT = {
@@ -24,6 +25,7 @@ export async function capturePage(browser, url, { timeoutMs = 90000 } = {}) {
 
 async function run(page, url, timeoutMs) {
   const warnings = [];
+  const requests = trackRequests(page);
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
   try { await page.waitForLoadState('networkidle', { timeout: 10000 }); }
   catch { warnings.push('réseau jamais au repos (normal sur certains sites)'); }
@@ -31,6 +33,9 @@ async function run(page, url, timeoutMs) {
 
   const cleaned = await cleanPage(page);
   warnings.push(...cleaned.warnings);
+  // Image de carrousel ou chargée paresseusement pendant le nettoyage
+  await requests.waitForQuiet({ idleMs: 500, timeoutMs: 5000 });
+  await page.waitForTimeout(300);
 
   const meta = await page.evaluate(() => ({
     ogSiteName: document.querySelector('meta[property="og:site_name"]')?.content,

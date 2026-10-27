@@ -16,6 +16,26 @@ describe('extractSiteName', () => {
     expect(extractSiteName({ title: 'Tarifs détaillés – Linear', hostname: 'linear.app' })).toBe('Linear');
   });
 
+  it('should prefer the title segment matching the domain over the page name', () => {
+    expect(extractSiteName({ title: 'Contact | Acme Studio', hostname: 'www.acme-studio.com' })).toBe('Acme Studio');
+  });
+
+  it('should prefer a title segment matching the domain over an unrelated og:site_name', () => {
+    expect(extractSiteName({
+      ogSiteName: 'Ontologie',
+      title: 'Ontologie | Métiers, données et agents IA - Growthsystemes',
+      hostname: 'www.growthsystemes.com',
+    })).toBe('Growthsystemes');
+  });
+
+  it('should strip decorative symbols around the name', () => {
+    expect(extractSiteName({
+      title: '→ Les Jardins du Faubourg · Hôtel Champs-Élysées 5 étoiles',
+      hostname: 'www.jardinsdufaubourg.com',
+    })).toBe('Les Jardins du Faubourg');
+    expect(extractSiteName({ ogSiteName: '★ Aesop ★', title: '', hostname: 'www.aesop.com' })).toBe('Aesop');
+  });
+
   it('should fall back to the hostname without www', () => {
     expect(extractSiteName({ title: '', hostname: 'www.aesop.com' })).toBe('aesop.com');
   });

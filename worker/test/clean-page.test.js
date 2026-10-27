@@ -101,6 +101,24 @@ describe('clean-page', () => {
     expect(await page.locator('#site-header').isVisible()).toBe(true);
   });
 
+  it('should keep a fixed wrapper that holds the main content', async () => {
+    await page.goto(fixture('fixed-wrapper.html'));
+
+    const warnings = await dismissPopups(page);
+
+    expect(await page.locator('#wrapper').isVisible()).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
+  it('should keep a fixed layer much taller than the viewport', async () => {
+    await page.setContent(`<div id="layer" style="position:fixed;top:0;left:0;width:100%;height:6000px;z-index:2;background:#eee">
+      <p>Contenu de la page</p></div>`);
+
+    await dismissPopups(page);
+
+    expect(await page.locator('#layer').isVisible()).toBe(true);
+  });
+
   it('should close a popup that appears late', async () => {
     await page.goto(fixture('late-popup.html'));
 

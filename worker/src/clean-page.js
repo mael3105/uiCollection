@@ -110,6 +110,8 @@ function hideCoveringOverlays() {
     const visibleH = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
     if ((visibleW * visibleH) / (vw * vh) < 0.3) continue;
     if (r.top <= 0 && r.height <= vh * 0.25) continue;
+    // Conteneur de défilement (parallaxe) : il porte la page elle-même, pas une popup
+    if (r.height > vh * 1.5 || el.querySelector('main, [role=main]')) continue;
     el.style.setProperty('display', 'none', 'important');
     hidden++;
   }
