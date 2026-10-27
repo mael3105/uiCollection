@@ -5,3 +5,4 @@ supabase/.branches
 supabase/.temp
 .superpowers/
 test-results/
+.vitest/

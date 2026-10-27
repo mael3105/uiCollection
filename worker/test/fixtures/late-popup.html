@@ -1,0 +1,14 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Tardive</title></head>
+<body style="margin:0;font-family:sans-serif">
+<main style="height:2000px;padding:40px"><h1>Accueil</h1></main>
+<script>
+setTimeout(() => {
+  const m = document.createElement('div');
+  m.id = 'late';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000';
+  m.innerHTML = '<div style="background:#fff;margin:100px;padding:40px"><p>Offre spéciale</p><button>Non merci</button></div>';
+  m.querySelector('button').onclick = () => m.remove();
+  document.body.appendChild(m);
+}, 1500);
+</script>
+</body></html>
