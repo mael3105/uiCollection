@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isHttpUrl, readAddParam, stripAddParam } from '../lib/add-param.js';
-import { savePendingAdd, takePendingAdd } from '../lib/pending-add.js';
+import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../lib/pending-add.js';
 import { filterPages } from '../lib/filter-pages.js';
 
 function memoryStorage() {
@@ -34,20 +34,23 @@ describe('add-param', () => {
 });
 
 describe('pending-add', () => {
-  it('should return the saved URL once', () => {
+  it('should keep the saved URL until it is cleared', () => {
     const storage = memoryStorage();
 
     savePendingAdd(storage, 'https://a.com');
 
-    expect(takePendingAdd(storage)).toBe('https://a.com');
-    expect(takePendingAdd(storage)).toBe(null);
+    expect(readPendingAdd(storage)).toBe('https://a.com');
+    expect(readPendingAdd(storage)).toBe('https://a.com');
+    clearPendingAdd(storage);
+    expect(readPendingAdd(storage)).toBe(null);
   });
 
-  it('should return null when storage throws', () => {
-    const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
+  it('should not throw when storage is blocked', () => {
+    const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
 
     expect(() => savePendingAdd(broken, 'https://a.com')).not.toThrow();
-    expect(takePendingAdd(broken)).toBe(null);
+    expect(readPendingAdd(broken)).toBe(null);
+    expect(() => clearPendingAdd(broken)).not.toThrow();
   });
 });
 

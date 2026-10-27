@@ -4,6 +4,7 @@
 
 import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
+import { createBrowserProvider } from './browser.js';
 import { capturePage } from './capture-page.js';
 import { processPage } from './process-page.js';
 
@@ -13,10 +14,10 @@ async function main() {
     throw new Error('SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont requis');
   }
   const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const browser = await chromium.launch();
+  const browser = createBrowserProvider(() => chromium.launch());
 
   const deps = {
-    capture: (url) => capturePage(browser, url),
+    capture: async (url) => capturePage(await browser.get(), url),
     upload: async (path, buffer) => {
       const { error } = await db.storage.from('thumbnails').upload(path, buffer, { upsert: true, contentType: 'image/jpeg' });
       if (error) throw error;

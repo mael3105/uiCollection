@@ -66,6 +66,33 @@ describe('clean-page', () => {
     expect(warnings.length).toBeGreaterThan(0);
   });
 
+  it('should close a modal without following site navigation links', async () => {
+    await page.goto(fixture('fixed-header-link.html'));
+
+    await dismissPopups(page);
+
+    expect(page.url()).toBe(fixture('fixed-header-link.html'));
+    expect(await page.locator('#modal').count()).toBe(0);
+  });
+
+  it('should hide a low z-index backdrop and its sibling dialog panel', async () => {
+    await page.goto(fixture('sibling-modal.html'));
+
+    await dismissPopups(page);
+
+    expect(await page.locator('#backdrop').isVisible()).toBe(false);
+    expect(await page.locator('#panel').isVisible()).toBe(false);
+  });
+
+  it('should click a close button labelled only with ×', async () => {
+    await page.setContent(`<div id="m" style="position:fixed;top:40%;left:40%;width:10%;height:10%;z-index:5">
+      Promo <button onclick="window.dismissed = true; this.parentElement.remove()">×</button></div>`);
+
+    await dismissPopups(page);
+
+    expect(await page.evaluate(() => window.dismissed)).toBe(true);
+  });
+
   it('should keep a sticky site header visible', async () => {
     await page.goto(fixture('sticky-header.html'));
 

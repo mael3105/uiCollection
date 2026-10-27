@@ -1,7 +1,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { isHttpUrl, readAddParam, stripAddParam } from './lib/add-param.js';
-import { savePendingAdd, takePendingAdd } from './lib/pending-add.js';
+import { clearPendingAdd, readPendingAdd, savePendingAdd } from './lib/pending-add.js';
+import { createThumbnails } from './lib/thumbnails.js';
 import { filterPages } from './lib/filter-pages.js';
 
 const STATUS_LABELS = {
@@ -14,10 +15,17 @@ const SIGNED_URL_TTL = 3600;
 
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
+const thumbnails = createThumbnails({
+  ttlMs: SIGNED_URL_TTL * 1000,
+  sign: async (paths) => {
+    const { data, error } = await db.storage.from('thumbnails').createSignedUrls(paths, SIGNED_URL_TTL);
+    if (error) throw error;
+    return data;
+  },
+});
 const state = {
   pages: [],
   query: '',
-  thumbs: new Map(), // `${id}:${captured_at}` → URL signée
   confirmDeleteId: null,
   highlightId: null,
   started: false,
@@ -26,7 +34,8 @@ const state = {
 
 // Une URL partagée (favori, Raccourci) est mise de côté avant toute vérification
 // de session, puis retirée de l'adresse pour qu'un rechargement ne la réajoute pas.
-const shared = readAddParam(location.href);
+// `shared` reste en mémoire si le stockage du navigateur est bloqué.
+let shared = readAddParam(location.href);
 if (shared) {
   savePendingAdd(sessionStorage, shared);
   history.replaceState(null, '', stripAddParam(location.href));
@@ -97,8 +106,10 @@ async function start() {
   render();
   subscribe();
 
-  const pending = takePendingAdd(sessionStorage);
-  if (pending) await addUrl(pending);
+  const pending = readPendingAdd(sessionStorage) ?? shared;
+  if (pending && !(await addUrl(pending))) {
+    $('add-url').value = pending; // un appui sur Ajouter suffit pour réessayer
+  }
 }
 
 function subscribe() {
@@ -123,6 +134,9 @@ async function addUrl(raw) {
     toast(`Ajout impossible : ${error.message}`, true);
     return false;
   }
+  // L'URL partagée n'est oubliée qu'une fois enregistrée, quel que soit le chemin de l'essai
+  if (readPendingAdd(sessionStorage) === url) clearPendingAdd(sessionStorage);
+  if (shared === url) shared = null;
   const [{ id, is_duplicate: isDuplicate }] = data;
   const { data: row } = await db.from('pages').select('*').eq('id', id).single();
   if (row) upsertPage(row);
@@ -193,19 +207,14 @@ async function deletePage(id) {
   toast('Supprimée');
 }
 
-const thumbKey = (p) => `${p.id}:${p.captured_at}`;
-
-async function signMissingThumbnails() {
-  const missing = state.pages.filter((p) => p.status === 'ready' && p.thumbnail_path && !state.thumbs.has(thumbKey(p)));
-  if (!missing.length) return;
-  const { data, error } = await db.storage.from('thumbnails')
-    .createSignedUrls(missing.map((p) => p.thumbnail_path), SIGNED_URL_TTL);
-  if (error) return;
-  data.forEach((signed, i) => {
-    if (signed.signedUrl) state.thumbs.set(thumbKey(missing[i]), signed.signedUrl);
-  });
-  render();
+async function refreshThumbnails() {
+  if (await thumbnails.refresh(state.pages)) render();
 }
+
+// Une page restée ouverte (icône sur l'écran d'accueil) renouvelle ses vignettes au retour
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.started) refreshThumbnails();
+});
 
 function render() {
   const visible = filterPages(state.pages, state.query);
@@ -218,7 +227,7 @@ function render() {
 
   const open = new Set([...document.querySelectorAll('#grid details[open]')].map((d) => d.closest('[data-id]').dataset.id));
   $('grid').innerHTML = visible.map((p) => cardHtml(p, open.has(p.id))).join('');
-  signMissingThumbnails();
+  refreshThumbnails();
 }
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
@@ -228,7 +237,7 @@ const hostOf = (url) => {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function cardHtml(p, isMenuOpen) {
-  const thumb = state.thumbs.get(thumbKey(p));
+  const thumb = thumbnails.urlFor(p);
   const host = hostOf(p.url);
   const name = p.site_name || host;
   const chip = p.status === 'ready' ? '' : `<span class="chip chip-${p.status}">${STATUS_LABELS[p.status]}</span>`;

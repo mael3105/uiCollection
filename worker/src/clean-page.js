@@ -4,7 +4,8 @@
 // Le nom entier du bouton doit correspondre : « Acceptez les paiements » n'est pas un bouton cookies.
 const REFUSE = /^\s*(tout refuser|refuser tout|continuer sans accepter|refuser|reject all|decline all|decline|only necessary|necessary only)\s*$/i;
 const ACCEPT = /^\s*(tout accepter|accepter et fermer|accepter tout|j'accepte|accepter|accept all|allow all|accept|agree|i agree)\s*$/i;
-const CLOSE = /(fermer|close|×|✕|non merci|no thanks|plus tard|later|dismiss)/i;
+// Ancré au début du nom : « Close dialog » oui, « Disclosures » ou « Collateral » non.
+const CLOSE = /^\s*(fermer|close|×|✕|non merci|no thanks|plus tard|maybe later|dismiss)(?![\p{L}\p{N}]).{0,20}$/iu;
 
 // Filet de sécurité : masque les conteneurs de CMP et de chat les plus répandus
 const HIDE_CSS = `
@@ -44,7 +45,7 @@ export async function dismissPopups(page) {
       for (let i = 0; i < count; i++) {
         const el = candidates.nth(i);
         try {
-          if (await el.isVisible() && await isInsideOverlay(el)) {
+          if (await el.isVisible() && await isDismissControl(el)) {
             await el.click({ timeout: 2000 });
             await page.waitForTimeout(400);
           }
@@ -76,10 +77,13 @@ export async function cleanPage(page) {
   return { consent, warnings: [...new Set(warnings)] };
 }
 
-// Un bouton « Fermer » n'est cliqué que s'il appartient à une couche flottante,
-// pour ne pas fermer un menu ou un accordéon du site.
-async function isInsideOverlay(locator) {
+// Un bouton « Fermer » n'est cliqué que s'il appartient à une couche flottante hors
+// en-tête, et un lien seulement s'il ne mène nulle part : on ne quitte jamais la page.
+async function isDismissControl(locator) {
   return locator.evaluate((el) => {
+    if (el.closest('header, nav, [role=banner]')) return false;
+    const href = el.getAttribute('href');
+    if (href && !href.startsWith('#') && !href.startsWith('javascript:')) return false;
     for (let n = el; n && n !== document.body; n = n.parentElement) {
       const pos = getComputedStyle(n).position;
       if (pos === 'fixed' || n.getAttribute('role') === 'dialog' || n.tagName === 'DIALOG') return true;
@@ -100,12 +104,19 @@ function hideCoveringOverlays() {
     if (style.display === 'none' || style.visibility === 'hidden') continue;
     if (el.matches('header, nav, [role=banner]') || el.closest('header, nav, [role=banner]')) continue;
     const zIndex = Number.parseInt(style.zIndex, 10);
-    if (!(zIndex >= 100)) continue;
+    if (!(zIndex > 0)) continue;
     const r = el.getBoundingClientRect();
     const visibleW = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
     const visibleH = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
     if ((visibleW * visibleH) / (vw * vh) < 0.3) continue;
     if (r.top <= 0 && r.height <= vh * 0.25) continue;
+    el.style.setProperty('display', 'none', 'important');
+    hidden++;
+  }
+  // Panneau de dialogue frère de son fond (Radix, Headless UI) : trop petit pour le seuil de surface
+  for (const el of document.body.querySelectorAll('[role=dialog], [aria-modal=true], dialog[open]')) {
+    const style = getComputedStyle(el);
+    if (style.position !== 'fixed' || style.display === 'none' || el.closest('header, nav, [role=banner]')) continue;
     el.style.setProperty('display', 'none', 'important');
     hidden++;
   }
