@@ -6,6 +6,10 @@
     "node": ">=20"
   },
   "scripts": {
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "dev": "npx -y serve@14.2.4 site -l 4173",
+    "capture:local": "sh scripts/capture-local.sh",
     "test": "vitest run --passWithNoTests",
     "db:test": "supabase test db"
   },
