@@ -38,6 +38,16 @@ describe('clean-page', () => {
     expect(await page.locator('#banner').count()).toBe(0);
   });
 
+  it('should refuse cookies through links without clicking marketing buttons', async () => {
+    await page.goto(fixture('consent-links.html'));
+
+    const consent = await dismissConsent(page);
+
+    expect(consent).toBe('refus');
+    expect(await page.evaluate(() => window.choice)).toBe('refus');
+    expect(await page.evaluate(() => window.marketingClicked)).toBeUndefined();
+  });
+
   it('should close a newsletter modal and unlock scrolling', async () => {
     await page.goto(fixture('newsletter-modal.html'));
 

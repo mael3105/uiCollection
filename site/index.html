@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>uiCollection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <form id="login-form" class="login-form">
+      <h1 class="wordmark">uiCollection</h1>
+      <p class="login-hint" id="login-hint">Connecte-toi pour ajouter et consulter ta collection.</p>
+      <label for="login-email">E-mail</label>
+      <input id="login-email" name="email" type="email" autocomplete="email" required>
+      <label for="login-password">Mot de passe</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit" class="btn-primary">Se connecter</button>
+      <p class="form-error" id="login-error" role="alert" hidden></p>
+    </form>
+  </section>
+
+  <div id="app" hidden>
+    <header class="bar">
+      <div class="bar-inner">
+        <h1 class="wordmark">uiCollection</h1>
+        <form id="add-form" class="add-form">
+          <label class="visually-hidden" for="add-url">URL à ajouter</label>
+          <input id="add-url" type="url" inputmode="url" placeholder="Coller une URL" autocomplete="off" required>
+          <button type="submit" class="btn-primary">Ajouter</button>
+        </form>
+        <div class="bar-tools">
+          <label class="visually-hidden" for="search">Rechercher</label>
+          <input id="search" type="search" placeholder="Rechercher un site, une URL">
+          <button id="logout" type="button" class="btn-quiet">Se déconnecter</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="sheet">
+      <p id="count" class="count"></p>
+      <ul id="grid" class="grid"></ul>
+      <div id="empty" class="empty" hidden>
+        <p class="empty-title">Ta collection est vide.</p>
+        <p>Colle une URL ci-dessus, ou utilise le favori « + Collection » depuis n'importe quelle page.</p>
+      </div>
+      <p id="no-match" class="empty" hidden>Aucune page ne correspond à cette recherche.</p>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

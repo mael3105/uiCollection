@@ -1,0 +1,271 @@
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
+import { isHttpUrl, readAddParam, stripAddParam } from './lib/add-param.js';
+import { savePendingAdd, takePendingAdd } from './lib/pending-add.js';
+import { filterPages } from './lib/filter-pages.js';
+
+const STATUS_LABELS = {
+  pending: 'en attente',
+  processing: 'capture en cours',
+  ready: 'prête',
+  failed: 'échec',
+};
+const SIGNED_URL_TTL = 3600;
+
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+const state = {
+  pages: [],
+  query: '',
+  thumbs: new Map(), // `${id}:${captured_at}` → URL signée
+  confirmDeleteId: null,
+  highlightId: null,
+  started: false,
+  channel: null,
+};
+
+// Une URL partagée (favori, Raccourci) est mise de côté avant toute vérification
+// de session, puis retirée de l'adresse pour qu'un rechargement ne la réajoute pas.
+const shared = readAddParam(location.href);
+if (shared) {
+  savePendingAdd(sessionStorage, shared);
+  history.replaceState(null, '', stripAddParam(location.href));
+}
+
+// supabase-js déconseille d'appeler le client dans ce rappel : on sort de la pile d'abord.
+db.auth.onAuthStateChange((event, session) => {
+  setTimeout(() => (session ? start() : showLogin()), 0);
+});
+
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const button = e.submitter;
+  button.disabled = true;
+  $('login-error').hidden = true;
+  const { error } = await db.auth.signInWithPassword({
+    email: $('login-email').value.trim(),
+    password: $('login-password').value,
+  });
+  button.disabled = false;
+  if (error) {
+    $('login-error').textContent = error.status === 400
+      ? 'E-mail ou mot de passe incorrect.'
+      : `Connexion impossible : ${error.message}`;
+    $('login-error').hidden = false;
+  }
+});
+
+$('logout').addEventListener('click', () => db.auth.signOut());
+
+$('add-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $('add-url');
+  if (await addUrl(input.value)) input.value = '';
+});
+
+$('search').addEventListener('input', (e) => {
+  state.query = e.target.value;
+  render();
+});
+
+$('grid').addEventListener('click', onGridClick);
+
+function showLogin() {
+  state.started = false;
+  state.pages = [];
+  if (state.channel) db.removeChannel(state.channel);
+  state.channel = null;
+  $('app').hidden = true;
+  $('login').hidden = false;
+  if (shared) {
+    $('login-hint').textContent = 'Connecte-toi : la page partagée sera ajoutée juste après.';
+  }
+}
+
+async function start() {
+  if (state.started) return;
+  state.started = true;
+  $('login').hidden = true;
+  $('app').hidden = false;
+
+  const { data, error } = await db.from('pages').select('*').order('created_at', { ascending: false });
+  if (error) {
+    toast(`Chargement impossible : ${error.message}`, true);
+  } else {
+    state.pages = data;
+  }
+  render();
+  subscribe();
+
+  const pending = takePendingAdd(sessionStorage);
+  if (pending) await addUrl(pending);
+}
+
+function subscribe() {
+  state.channel = db
+    .channel('pages')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, ({ eventType, new: row, old }) => {
+      if (eventType === 'DELETE') removePage(old.id);
+      else upsertPage(row);
+      render();
+    })
+    .subscribe();
+}
+
+async function addUrl(raw) {
+  const url = raw.trim();
+  if (!isHttpUrl(url)) {
+    toast("Cette adresse n'est pas une URL web (http ou https).", true);
+    return false;
+  }
+  const { data, error } = await db.rpc('add_page', { p_url: url });
+  if (error) {
+    toast(`Ajout impossible : ${error.message}`, true);
+    return false;
+  }
+  const [{ id, is_duplicate: isDuplicate }] = data;
+  const { data: row } = await db.from('pages').select('*').eq('id', id).single();
+  if (row) upsertPage(row);
+  highlight(id);
+  toast(isDuplicate ? 'Déjà dans la collection' : 'Ajoutée');
+  return true;
+}
+
+function upsertPage(row) {
+  const i = state.pages.findIndex((p) => p.id === row.id);
+  if (i === -1) state.pages.unshift(row);
+  else state.pages[i] = row;
+  state.pages.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+function removePage(id) {
+  state.pages = state.pages.filter((p) => p.id !== id);
+}
+
+function highlight(id) {
+  state.highlightId = id;
+  render();
+  document.querySelector(`[data-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => {
+    if (state.highlightId === id) {
+      state.highlightId = null;
+      render();
+    }
+  }, 4000);
+}
+
+async function onGridClick(e) {
+  const target = e.target.closest('[data-action]');
+  if (!target) return;
+  const id = target.closest('[data-id]').dataset.id;
+  const action = target.dataset.action;
+
+  if (action === 'retry') {
+    target.closest('details').open = false;
+    const { error } = await db.from('pages').update({ status: 'pending', error: null }).eq('id', id);
+    if (error) toast(`Relance impossible : ${error.message}`, true);
+    else toast('Capture relancée');
+  } else if (action === 'ask-delete') {
+    state.confirmDeleteId = id;
+    render();
+    document.querySelector(`[data-id="${id}"] details`)?.setAttribute('open', '');
+  } else if (action === 'cancel-delete') {
+    state.confirmDeleteId = null;
+    render();
+  } else if (action === 'delete') {
+    await deletePage(id);
+  }
+}
+
+async function deletePage(id) {
+  const page = state.pages.find((p) => p.id === id);
+  if (page?.thumbnail_path) {
+    await db.storage.from('thumbnails').remove([page.thumbnail_path]);
+  }
+  const { error } = await db.from('pages').delete().eq('id', id);
+  state.confirmDeleteId = null;
+  if (error) {
+    toast(`Suppression impossible : ${error.message}`, true);
+    return;
+  }
+  removePage(id);
+  render();
+  toast('Supprimée');
+}
+
+const thumbKey = (p) => `${p.id}:${p.captured_at}`;
+
+async function signMissingThumbnails() {
+  const missing = state.pages.filter((p) => p.status === 'ready' && p.thumbnail_path && !state.thumbs.has(thumbKey(p)));
+  if (!missing.length) return;
+  const { data, error } = await db.storage.from('thumbnails')
+    .createSignedUrls(missing.map((p) => p.thumbnail_path), SIGNED_URL_TTL);
+  if (error) return;
+  data.forEach((signed, i) => {
+    if (signed.signedUrl) state.thumbs.set(thumbKey(missing[i]), signed.signedUrl);
+  });
+  render();
+}
+
+function render() {
+  const visible = filterPages(state.pages, state.query);
+  const total = state.pages.length;
+  $('count').textContent = total
+    ? (visible.length === total ? `${total} page${total > 1 ? 's' : ''}` : `${visible.length} sur ${total} pages`)
+    : '';
+  $('empty').hidden = total > 0;
+  $('no-match').hidden = !(total > 0 && visible.length === 0);
+
+  const open = new Set([...document.querySelectorAll('#grid details[open]')].map((d) => d.closest('[data-id]').dataset.id));
+  $('grid').innerHTML = visible.map((p) => cardHtml(p, open.has(p.id))).join('');
+  signMissingThumbnails();
+}
+
+const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+const hostOf = (url) => {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function cardHtml(p, isMenuOpen) {
+  const thumb = state.thumbs.get(thumbKey(p));
+  const host = hostOf(p.url);
+  const name = p.site_name || host;
+  const chip = p.status === 'ready' ? '' : `<span class="chip chip-${p.status}">${STATUS_LABELS[p.status]}</span>`;
+  const image = thumb
+    ? `<img src="${esc(thumb)}" alt="Haut de la page ${esc(p.page_title || host)}" loading="lazy">`
+    : `<span class="shot-placeholder">${esc(host)}</span>`;
+  const menu = state.confirmDeleteId === p.id
+    ? `<div class="confirm">
+         <p>Supprimer définitivement ?</p>
+         <div><button type="button" class="danger-solid" data-action="delete">Oui</button>
+         <button type="button" data-action="cancel-delete">Annuler</button></div>
+       </div>`
+    : `<a href="${esc(p.url)}" target="_blank" rel="noopener">Ouvrir le site</a>
+       <button type="button" data-action="retry">Refaire la capture</button>
+       <button type="button" class="danger" data-action="ask-delete">Supprimer</button>`;
+
+  return `<li class="card${state.highlightId === p.id ? ' is-highlighted' : ''}" data-id="${esc(p.id)}">
+    <a class="shot" href="${esc(p.url)}" target="_blank" rel="noopener" tabindex="-1">${image}${chip}</a>
+    <div class="caption">
+      <h2 class="site-name" title="${esc(p.page_title || name)}">${esc(name)}</h2>
+      <details class="menu"${isMenuOpen || state.confirmDeleteId === p.id ? ' open' : ''}>
+        <summary aria-label="Actions pour ${esc(name)}">⋯</summary>
+        <div class="menu-panel">${menu}</div>
+      </details>
+      <a class="site-url" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.url.replace(/^https?:\/\//, ''))}</a>
+      <span class="added">${dateFormat.format(new Date(p.created_at))}</span>
+      ${p.status === 'failed' && p.error ? `<p class="error-msg">${esc(p.error)}</p>` : ''}
+    </div>
+  </li>`;
+}
+
+let toastTimer;
+function toast(message, isError = false) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.toggle('is-error', isError);
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, isError ? 6000 : 3000);
+}

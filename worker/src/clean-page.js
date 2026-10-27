@@ -1,8 +1,9 @@
 // Nettoyage avant capture : bannières cookies, popups commerciales, widgets de chat.
 // Logique cookies reprise de -sandbox/capture/capture.mjs.
 
-const REFUSE = /(tout refuser|refuser tout|continuer sans accepter|refuser|reject all|decline all|decline|only necessary|necessary only)/i;
-const ACCEPT = /(tout accepter|accepter et fermer|j'accepte|accepter|accept all|allow all|accept|agree)/i;
+// Le nom entier du bouton doit correspondre : « Acceptez les paiements » n'est pas un bouton cookies.
+const REFUSE = /^\s*(tout refuser|refuser tout|continuer sans accepter|refuser|reject all|decline all|decline|only necessary|necessary only)\s*$/i;
+const ACCEPT = /^\s*(tout accepter|accepter et fermer|accepter tout|j'accepte|accepter|accept all|allow all|accept|agree|i agree)\s*$/i;
 const CLOSE = /(fermer|close|×|✕|non merci|no thanks|plus tard|later|dismiss)/i;
 
 // Filet de sécurité : masque les conteneurs de CMP et de chat les plus répandus
@@ -16,14 +17,17 @@ const HIDE_CSS = `
 export async function dismissConsent(page) {
   for (const [label, re] of [['refus', REFUSE], ['acceptation', ACCEPT]]) {
     for (const frame of page.frames()) {
-      try {
-        const btn = frame.getByRole('button', { name: re }).first();
-        if (await btn.isVisible({ timeout: 500 })) {
-          await btn.click({ timeout: 2000 });
-          await page.waitForTimeout(800);
-          return label;
-        }
-      } catch { /* bouton absent ou non cliquable : on continue */ }
+      // Certaines CMP (Stripe…) utilisent des liens stylés en boutons
+      for (const role of ['button', 'link']) {
+        try {
+          const btn = frame.getByRole(role, { name: re }).first();
+          if (await btn.isVisible({ timeout: 500 })) {
+            await btn.click({ timeout: 2000 });
+            await page.waitForTimeout(800);
+            return label;
+          }
+        } catch { /* bouton absent ou non cliquable : on continue */ }
+      }
     }
   }
   return null;

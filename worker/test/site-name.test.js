@@ -20,7 +20,7 @@ describe('extractSiteName', () => {
     expect(extractSiteName({ title: '', hostname: 'www.aesop.com' })).toBe('aesop.com');
   });
 
-  it('should ignore blank metadata and use a title without separators as is', () => {
-    expect(extractSiteName({ ogSiteName: '  ', title: 'Seul titre', hostname: 'a.fr' })).toBe('Seul titre');
+  it('should use the hostname when the title has no separator', () => {
+    expect(extractSiteName({ ogSiteName: '  ', title: 'Tarifs et frais', hostname: 'stripe.com' })).toBe('stripe.com');
   });
 });
