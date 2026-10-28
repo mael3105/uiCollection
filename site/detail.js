@@ -3,6 +3,7 @@
 import { orderedAnalysis, renderDesignMd } from './lib/design-md.js';
 import { hasUnsavedChanges, statusLabel } from './lib/page-state.js';
 import { domainOf } from './lib/stacks.js';
+import { icon } from './lib/icons.js';
 import { PAGE_TYPES, SITE_TYPES, STYLES } from './lib/taxonomy.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -95,7 +96,8 @@ export function createDetail({ db, thumbnails, getPage, retry, reanalyze, remove
 
   function renderView(page) {
     const name = page.display_name || page.site_name || domainOf(page.url);
-    dialog.querySelector('#detail-title').textContent = name;
+    const type = page.page_type || page.site_type;
+    dialog.querySelector('#detail-title').innerHTML = esc(name) + (type ? ` <sup>${esc(type)}</sup>` : '');
     const thumb = thumbnails.urlFor(page);
     const label = statusLabel(page);
     const chip = label ? `<span class="chip chip-${page.status}">${label}</span>` : '';
@@ -181,6 +183,13 @@ export function createDetail({ db, thumbnails, getPage, retry, reanalyze, remove
       } catch {
         toast('Copie impossible : sélectionne le texte à la main.', 'error');
       }
+    } else if (action === 'copy-url') {
+      try {
+        await navigator.clipboard.writeText(page.url);
+        toast('URL copiée', 'success');
+      } catch {
+        toast("Copie impossible : sélectionne l'adresse à la main.", 'error');
+      }
     } else if (action === 'download') {
       const filename = `${slug(page)}.DESIGN.md`;
       const blob = new Blob([dialog.querySelector('#detail-md').textContent], { type: 'text/markdown' });
@@ -265,23 +274,28 @@ function shellHtml(page) {
     <header class="detail-head">
       <div class="detail-heading">
         <h2 id="detail-title"></h2>
-        <a class="detail-url" href="${esc(page.url)}" target="_blank" rel="noopener">${esc(page.url.replace(/^https?:\/\//, ''))}<span aria-hidden="true"> ↗</span></a>
+        <div class="detail-link">
+          <a class="detail-url" href="${esc(page.url)}" target="_blank" rel="noopener">${esc(page.url.replace(/^https?:\/\//, ''))}</a>
+          <button type="button" class="icon-btn" data-detail="copy-url" aria-label="Copier l'URL" title="Copier l'URL">${icon('copy', 14)}</button>
+        </div>
       </div>
       <div id="detail-tools" class="detail-tools"></div>
-      <button type="button" class="icon-btn detail-close" data-detail="close" aria-label="Fermer la fiche">✕</button>
+      <button type="button" class="icon-btn detail-close" data-detail="close" aria-label="Fermer la fiche">${icon('x', 18)}</button>
     </header>
     <div class="detail-body">
       <figure class="detail-shot" id="detail-shot"></figure>
 
       <form id="detail-form" class="detail-form">
-        <label for="detail-name">Nom affiché</label>
-        <input id="detail-name" name="display_name" maxlength="200" value="${esc(page.display_name)}" placeholder="${esc(page.site_name || domainOf(page.url))}">
+        <div class="form-field">
+          <label for="detail-name">Nom affiché</label>
+          <input id="detail-name" name="display_name" maxlength="200" value="${esc(page.display_name)}" placeholder="${esc(page.site_name || domainOf(page.url))}">
+        </div>
         <div class="field-pair">
-          <div>
+          <div class="form-field">
             <label for="detail-site-type">Type de site</label>
             <input id="detail-site-type" name="site_type" list="site-types" maxlength="60" value="${esc(page.site_type)}" autocomplete="off">
           </div>
-          <div>
+          <div class="form-field">
             <label for="detail-page-type">Type de page</label>
             <input id="detail-page-type" name="page_type" list="page-types" maxlength="60" value="${esc(page.page_type)}" autocomplete="off">
           </div>
@@ -296,8 +310,10 @@ function shellHtml(page) {
             <button type="button" class="style-confirm" data-detail="style-add">Ajouter</button>
           </span>
         </fieldset>
-        <label for="detail-notes">Notes</label>
-        <textarea id="detail-notes" name="notes" rows="3" maxlength="10000" placeholder="Ce qui t'inspire dans cette page">${esc(page.notes)}</textarea>
+        <div class="form-field is-wide">
+          <label for="detail-notes">Notes</label>
+          <textarea id="detail-notes" name="notes" rows="3" maxlength="10000" placeholder="Ce qui t'inspire dans cette page">${esc(page.notes)}</textarea>
+        </div>
       </form>
 
       <section id="detail-analysis" class="detail-analysis" aria-label="Analyse de design"></section>
@@ -316,8 +332,9 @@ function shellHtml(page) {
       <div id="detail-actions" class="detail-actions"></div>
     </div>
     <footer id="detail-foot" class="detail-foot" hidden>
+      <span class="dot" aria-hidden="true"></span>
       <p>Modifications non enregistrées</p>
-      <button type="button" class="btn-quiet" data-detail="reset">Annuler</button>
+      <button type="button" class="btn-secondary" data-detail="reset">Annuler</button>
       <button type="submit" id="detail-save" class="btn-primary" form="detail-form">Enregistrer</button>
     </footer>
   </div>`;
@@ -352,26 +369,32 @@ function analysisHtml(page) {
   const colors = Object.entries(a.colors).map(([role, hex]) => `<li>
       <span class="swatch" style="background:${esc(hex)}"></span>
       <span class="swatch-role">${esc(role)}</span><code>${esc(hex)}</code></li>`).join('');
-  const type = Object.entries(a.typography).map(([role, t]) => `<li>
-      <span class="type-role">${esc(role)}</span>
-      <span>${esc(t.fontFamily)}, ${esc(t.fontSize)}, ${esc(t.fontWeight)}</span></li>`).join('');
+  const type = [
+    ['Polices', a.fonts.join(', '), true],
+    ...Object.entries(a.typography).map(([role, t]) => [role, `${t.fontFamily}, ${t.fontSize}, ${t.fontWeight}`]),
+  ];
   const facts = [
-    ['Thème', `${a.layout.theme}${a.layout.heroMedia ? ', haut de page sur image ou vidéo' : ''}`],
-    ['Polices', a.fonts.join(', ')],
     ['Technologies', a.tech.join(', ')],
     ['Arrondis', Object.values(a.rounded).join(', ')],
     ['Espacements', Object.values(a.spacing).join(', ')],
-    ['Largeur de contenu', a.layout.contentWidth && `${a.layout.contentWidth}px`],
-  ].filter(([, v]) => v);
+    ['Contenu', a.layout.contentWidth && `${a.layout.contentWidth}px de large`],
+    ['Haut de page', a.layout.heroMedia && 'sur image ou vidéo'],
+  ];
   const outline = a.headings.slice(0, 12).map((h) => `<li class="h${h.level}">${esc(h.text)}</li>`).join('');
-  return `<h3>Analyse de design</h3>
+  return `<h3>Analyse de design <span class="badge">${esc(a.layout.theme)}</span></h3>
+    <ul class="swatches">${colors}</ul>
     <div class="analysis-grid">
-      <div><h4>Couleurs</h4><ul class="swatches">${colors}</ul></div>
-      <div><h4>Typographie</h4><ul class="type-list">${type}</ul></div>
+      ${factsHtml(type)}
+      ${factsHtml(facts)}
     </div>
-    <dl class="facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
-    ${outline ? `<h4>Plan de la page</h4><ul class="outline">${outline}</ul>` : ''}
+    ${outline ? `<div><h4>Plan de la page</h4><ul class="outline">${outline}</ul></div>` : ''}
     ${warnings}`;
+}
+
+function factsHtml(rows) {
+  const items = rows.filter(([, v]) => v)
+    .map(([k, v, isStrong]) => `<dt>${esc(k)}</dt><dd${isStrong ? ' class="is-strong"' : ''}>${esc(v)}</dd>`).join('');
+  return items ? `<dl class="facts">${items}</dl>` : '<div></div>';
 }
 
 function slug(page) {

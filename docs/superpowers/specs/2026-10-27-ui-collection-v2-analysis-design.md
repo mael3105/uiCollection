@@ -56,3 +56,13 @@ Les pages d'un même domaine (sans `www.`) forment une pile dès qu'il y en a de
 ## Hors périmètre
 
 Proposition automatique de la typologie, captures mobiles, export pour agents (idées seulement).
+
+## 6. Nouvelle interface inspirée d'Awwwards (28/10/2026)
+
+- Palette `#f8f8f8` / `#ededed` / `#222222`, Inter Tight, boutons noirs ou à contour, rayon 8px ; accent `#ff9667` réservé à ce qui est en cours (bandeau d'activité du robot, pastilles d'état, pied « Modifications non enregistrées »).
+- Bande de filtres : Type de site, Type de page, Style (saisis dans la fiche), Technologie et Couleur (relevés par l'analyse ; couleur = famille de teinte du `primary` et de l'`accent`, « noir et blanc » sinon). Une valeur par filtre, filtres cumulés ; un filtre actif affiche la grille à plat comme la recherche.
+- Cartes : favicon du site (relevé par l'analyse, sinon `/favicon.ico`, sinon initiale), nom, type en exposant, date, adresse. Densité grandes / petites vignettes mémorisée dans le navigateur.
+- Champ d'ajout d'URL : taille inchangée (440px max, 40px de haut).
+- Fiche : URL sans « ↗ », bouton pour la copier ; nuancier en grands carrés ; typographie et mesures en lignes à filets.
+- Icônes : Lucide (licence ISC), recopiées en ligne dans `site/lib/icons.js`.
+- Extracteur : pas de `text-muted` qui ne contraste pas avec le fond (texte blanc d'un bandeau noir) ; pas de rôle `display` quand le plus grand texte n'est pas au moins 1,25 × le corps de texte.

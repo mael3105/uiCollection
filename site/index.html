@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -29,6 +29,12 @@
   </section>
 
   <div id="app" hidden>
+    <div id="activity" class="activity" hidden>
+      <div class="activity-inner">
+        <span class="dot" aria-hidden="true"></span>
+        <p><b id="activity-title"></b> : <span id="activity-detail"></span></p>
+      </div>
+    </div>
     <header class="bar">
       <div class="bar-inner">
         <h1 class="wordmark">uiCollection</h1>
@@ -40,38 +46,51 @@
           </div>
           <button type="submit" class="btn-primary">Ajouter</button>
         </form>
-        <div class="bar-tools">
-          <label class="visually-hidden" for="search">Rechercher</label>
-          <div class="field">
-            <input id="search" type="search" placeholder="Rechercher un site, une URL">
-            <kbd class="field-key" title="Raccourci : /">/</kbd>
+        <details class="menu account">
+          <summary aria-label="Compte"><span id="account-initial" class="account-initial"></span></summary>
+          <div class="menu-panel">
+            <p id="account-email" class="account-email"></p>
+            <button id="logout" type="button">Se déconnecter</button>
           </div>
-          <details class="menu account">
-            <summary aria-label="Compte"><span id="account-initial" class="account-initial"></span></summary>
-            <div class="menu-panel">
-              <p id="account-email" class="account-email"></p>
-              <button id="logout" type="button">Se déconnecter</button>
-            </div>
-          </details>
-        </div>
+        </details>
       </div>
       <div id="toast" class="toast" role="status" aria-live="polite" popover="manual"></div>
     </header>
 
     <main class="sheet">
-      <div id="site-bar" class="site-bar" hidden>
-        <button id="back-all" type="button" class="btn-quiet back">
-          <span aria-hidden="true">←</span> Toutes les pages
-        </button>
-        <h2 id="site-title" class="site-title"></h2>
+      <div class="filters" role="search">
+        <div id="facets" class="facets"></div>
+        <div class="field search-field">
+          <label class="visually-hidden" for="search">Rechercher</label>
+          <span class="field-icon" id="search-icon"></span>
+          <input id="search" type="search" placeholder="Rechercher un site, une URL">
+          <kbd class="field-key" title="Raccourci : /">/</kbd>
+        </div>
       </div>
-      <p id="count" class="count"></p>
+
+      <div class="sheet-head">
+        <div class="sheet-title">
+          <button id="back-all" type="button" class="icon-btn back" aria-label="Revenir à toute la collection" hidden></button>
+          <h2 id="collection-title" class="collection-title">Collection</h2>
+          <span id="count-badge" class="badge"></span>
+        </div>
+        <div class="sheet-tools">
+          <p id="count" class="count"></p>
+          <div class="density" role="group" aria-label="Taille des vignettes">
+            <button type="button" class="icon-btn" data-density="large" aria-label="Grandes vignettes" aria-pressed="true"></button>
+            <button type="button" class="icon-btn" data-density="compact" aria-label="Petites vignettes" aria-pressed="false"></button>
+          </div>
+        </div>
+      </div>
       <ul id="grid" class="grid"></ul>
       <div id="empty" class="empty" hidden>
         <p class="empty-title">Ta collection est vide.</p>
         <p>Colle une URL ci-dessus, ou utilise le favori « + Collection » depuis n'importe quelle page.</p>
       </div>
-      <p id="no-match" class="empty" hidden>Aucune page ne correspond à cette recherche.</p>
+      <div id="no-match" class="empty" hidden>
+        <p>Aucune page ne correspond à ces critères.</p>
+        <button id="reset-filters" type="button" class="btn-secondary">Effacer les filtres et la recherche</button>
+      </div>
     </main>
   </div>
 

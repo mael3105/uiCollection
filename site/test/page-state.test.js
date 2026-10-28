@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasUnsavedChanges, statusLabel } from '../lib/page-state.js';
+import { activityLabel, hasUnsavedChanges, statusLabel } from '../lib/page-state.js';
 
 describe('hasUnsavedChanges', () => {
   const saved = { display_name: 'Leadpages', site_type: null, page_type: 'Pricing', styles: ['Tech', 'Minimal'], notes: null };
@@ -38,5 +38,26 @@ describe('statusLabel', () => {
 
   it('should return null for a ready page', () => {
     expect(statusLabel({ status: 'ready', job: 'capture' })).toBe(null);
+  });
+});
+
+describe('activityLabel', () => {
+  const busy = (url, status, job = 'capture') => ({ url, status, job });
+
+  it('should return null when the robot has nothing to do', () => {
+    expect(activityLabel([busy('https://a.com/', 'ready'), busy('https://b.com/', 'failed')])).toBe(null);
+  });
+
+  it('should name the one page being captured or analysed', () => {
+    expect(activityLabel([busy('https://www.awwwards.com/websites/nominees/', 'processing')]))
+      .toEqual({ title: '1 capture en cours', detail: 'awwwards.com/websites/nominees' });
+    expect(activityLabel([busy('https://a.com/', 'pending', 'analysis')]))
+      .toEqual({ title: '1 analyse en cours', detail: 'a.com' });
+  });
+
+  it('should count mixed jobs and list at most three sites', () => {
+    const pages = ['a', 'b', 'c', 'd'].map((h, i) => busy(`https://${h}.com/`, 'pending', i ? 'capture' : 'analysis'));
+
+    expect(activityLabel(pages)).toEqual({ title: '4 traitements en cours', detail: 'a.com, b.com, c.com…' });
   });
 });

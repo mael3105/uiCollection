@@ -5,10 +5,13 @@ import { clearPendingAdd, readPendingAdd, savePendingAdd } from './lib/pending-a
 import { createThumbnails } from './lib/thumbnails.js';
 import { filterPages } from './lib/filter-pages.js';
 import { domainOf, groupBySite } from './lib/stacks.js';
-import { statusLabel } from './lib/page-state.js';
+import { activityLabel, statusLabel } from './lib/page-state.js';
+import { FACETS, FAMILY_SWATCH, applyFacets, facetOptions } from './lib/facets.js';
+import { icon } from './lib/icons.js';
 import { createDetail } from './detail.js';
 
 const SIGNED_URL_TTL = 3600;
+const DENSITY_KEY = 'uic-density';
 
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -23,6 +26,8 @@ const thumbnails = createThumbnails({
 const state = {
   pages: [],
   query: '',
+  filters: {}, // { site_type: 'SaaS', color: 'bleu', … } : une valeur par filtre
+  density: readDensity(),
   confirmDeleteId: null,
   highlightId: null,
   started: false,
@@ -98,6 +103,33 @@ $('search').addEventListener('input', (e) => {
 
 $('grid').addEventListener('click', onGridClick);
 $('back-all').addEventListener('click', () => setRoute({}));
+$('facets').addEventListener('click', onFacetClick);
+$('reset-filters').addEventListener('click', () => {
+  state.filters = {};
+  state.query = '';
+  $('search').value = '';
+  render();
+});
+document.querySelector('.density').addEventListener('click', (e) => {
+  const button = e.target.closest('[data-density]');
+  if (!button) return;
+  state.density = button.dataset.density;
+  try { localStorage.setItem(DENSITY_KEY, state.density); } catch { /* préférence perdue au rechargement */ }
+  render();
+});
+$('search-icon').innerHTML = icon('search', 16);
+$('back-all').innerHTML = icon('arrow-left', 18);
+document.querySelector('[data-density="large"]').innerHTML = icon('layout-grid', 16);
+document.querySelector('[data-density="compact"]').innerHTML = icon('grid-3x3', 16);
+
+// Favicon introuvable ou bloqué : l'initiale dessous reste visible
+document.addEventListener('error', (e) => {
+  if (e.target.matches?.('.site-icon img')) e.target.remove();
+}, true);
+
+function readDensity() {
+  try { return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'large'; } catch { return 'large'; }
+}
 
 // Adresse : #site=<domaine> pour une pile ouverte, #page=<id> pour une fiche ;
 // le bouton retour du navigateur referme la fiche ou la pile.
@@ -375,19 +407,35 @@ function render() {
     setRoute({}); // dernière page du site supprimée
     return;
   }
-  const visible = filterPages(sitePages, state.query);
+  const visible = applyFacets(filterPages(sitePages, state.query), state.filters);
   const total = sitePages.length;
-  const plural = (n) => `${n} page${n > 1 ? 's' : ''}`;
-  $('count').textContent = total
-    ? (visible.length === total ? plural(total) : `${visible.length} sur ${plural(total)}`)
-    : '';
-  $('site-bar').hidden = !state.site;
-  $('site-title').textContent = state.site ?? '';
+  const isFiltered = Boolean(state.query.trim()) || Object.values(state.filters).some(Boolean);
+  const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+  const sites = new Set(sitePages.map((p) => domainOf(p.url))).size;
+  $('count').textContent = !total ? ''
+    : isFiltered ? `${visible.length} sur ${plural(total, 'page')}`
+    : state.site ? `${plural(total, 'page')}, les plus récentes d'abord`
+    : `${plural(total, 'page')} de ${plural(sites, 'site')}`;
+  $('count-badge').textContent = total ? visible.length : '';
+  $('count-badge').hidden = !total;
+  $('collection-title').textContent = state.site ?? 'Collection';
+  $('back-all').hidden = !state.site;
   $('empty').hidden = state.pages.length > 0;
   $('no-match').hidden = !(total > 0 && visible.length === 0);
+  for (const button of document.querySelectorAll('[data-density]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.density === state.density));
+  }
+  $('grid').classList.toggle('is-compact', state.density === 'compact');
 
-  // Recherche ou site ouvert : résultats à plat ; sinon, une pile par site
-  const items = state.query.trim() || state.site
+  const activity = activityLabel(state.pages);
+  $('activity').hidden = !activity;
+  $('activity-title').textContent = activity?.title ?? '';
+  $('activity-detail').textContent = activity?.detail ?? '';
+
+  renderFacets(sitePages);
+
+  // Recherche, filtre ou site ouvert : résultats à plat ; sinon, une pile par site
+  const items = isFiltered || state.site
     ? visible.map((page) => ({ kind: 'page', page }))
     : groupBySite(visible);
   const open = new Set([...document.querySelectorAll('#grid details[open]')].map((d) => d.closest('[data-id]').dataset.id));
@@ -397,6 +445,46 @@ function render() {
   refreshThumbnails();
 }
 
+function renderFacets(pages) {
+  const openKey = document.querySelector('#facets details[open]')?.dataset.facet;
+  $('facets').innerHTML = FACETS.map(({ key, label }) => {
+    const value = state.filters[key];
+    const options = facetOptions(pages, key);
+    const items = options.length
+      ? options.map((o) => `<button type="button" class="facet-option" data-facet-value="${esc(o.value)}" aria-pressed="${o.value === value}">
+          ${key === 'color' ? `<span class="facet-swatch" style="background:${FAMILY_SWATCH[o.value]}"></span>` : ''}
+          <span class="facet-value">${esc(o.value)}</span><span class="facet-count">${o.count}</span>
+        </button>`).join('')
+      : `<p class="facet-empty">${key === 'tech' || key === 'color' ? "Rien de relevé par l'analyse pour l'instant." : 'Aucune page renseignée : complète-les depuis leur fiche.'}</p>`;
+    const colors = key === 'color' && !value
+      ? `<span class="facet-bars" aria-hidden="true">${['bleu', 'orange', 'vert'].map((f) => `<span style="background:${FAMILY_SWATCH[f]}"></span>`).join('')}</span>`
+      : '';
+    return `<div class="facet${value ? ' is-active' : ''}">
+      <details class="menu facet-menu" data-facet="${key}"${openKey === key ? ' open' : ''}>
+        <summary class="facet-btn">${esc(label)}${value ? ` : <b>${esc(value)}</b>` : ''}${colors}${icon('chevron-down', 14)}</summary>
+        <div class="menu-panel facet-panel">${items}</div>
+      </details>
+      ${value ? `<button type="button" class="facet-clear" data-facet-clear="${key}" aria-label="Retirer le filtre ${esc(label)}">${icon('x', 14)}</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function onFacetClick(e) {
+  const clear = e.target.closest('[data-facet-clear]');
+  const option = e.target.closest('[data-facet-value]');
+  if (clear) {
+    delete state.filters[clear.dataset.facetClear];
+  } else if (option) {
+    const key = option.closest('[data-facet]').dataset.facet;
+    const value = option.dataset.facetValue;
+    state.filters[key] = state.filters[key] === value ? undefined : value;
+    option.closest('details').open = false;
+  } else {
+    return;
+  }
+  render();
+}
+
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
 const hostOf = (url) => {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
@@ -404,6 +492,16 @@ const hostOf = (url) => {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const nameOf = (p) => p.display_name || p.site_name || hostOf(p.url);
+
+// Icône relevée par l'analyse, sinon /favicon.ico ; l'initiale reste dessous si l'image manque
+function siteIconHtml(p) {
+  let src = p.analysis?.meta?.favicon;
+  if (!src) {
+    try { src = `${new URL(p.url).origin}/favicon.ico`; } catch { src = null; }
+  }
+  const image = src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
+  return `<span class="site-icon" aria-hidden="true">${esc(nameOf(p).charAt(0).toUpperCase())}${image}</span>`;
+}
 
 function shotHtml(p, { action, label }) {
   const thumb = thumbnails.urlFor(p);
@@ -415,9 +513,21 @@ function shotHtml(p, { action, label }) {
     : `<span class="shot-placeholder">${esc(host)}</span>`;
   return `<div class="shot-wrap">
       <button type="button" class="shot" data-action="${action}" aria-label="${esc(label)}">${image}${chip}</button>
-      <a class="open-site" href="${esc(p.url)}" target="_blank" rel="noopener" aria-label="Ouvrir ${esc(host)} dans un nouvel onglet" title="Ouvrir le site">
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3h7v7M13 3 6.5 9.5M11 9v4H3V5h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
+      <a class="open-site" href="${esc(p.url)}" target="_blank" rel="noopener" aria-label="Ouvrir ${esc(host)} dans un nouvel onglet" title="Ouvrir le site">${icon('arrow-up-right', 18)}</a>
+    </div>`;
+}
+
+function captionHtml(p, { name, type, url, menu = '' }) {
+  return `<div class="caption">
+      <div class="caption-row">
+        ${siteIconHtml(p)}
+        <h2 class="site-name" title="${esc(p.page_title || name)}">${esc(name)}</h2>
+        ${type ? `<sup class="type">${esc(type)}</sup>` : ''}
+        <span class="added">${dateFormat.format(new Date(p.created_at))}</span>
+        ${menu}
+      </div>
+      <p class="site-url">${esc(url)}</p>
+      ${p.status === 'failed' && p.error ? `<p class="error-msg">${esc(p.error)}</p>` : ''}
     </div>`;
 }
 
@@ -426,18 +536,13 @@ function stackHtml({ domain, pages }) {
   return `<li class="card stack" data-domain="${esc(domain)}">
     ${shotHtml(latest, { action: 'open-stack', label: `Voir les ${pages.length} pages de ${domain}` })}
     <span class="stack-count" aria-hidden="true">${pages.length} pages</span>
-    <div class="caption">
-      <h2 class="site-name">${esc(nameOf(latest))}</h2>
-      <span class="site-url">${esc(domain)}</span>
-      <span class="added">${dateFormat.format(new Date(latest.created_at))}</span>
-    </div>
+    ${captionHtml(latest, { name: nameOf(latest), type: latest.site_type, url: domain })}
   </li>`;
 }
 
 function cardHtml(p, isMenuOpen) {
-  const host = hostOf(p.url);
   const name = nameOf(p);
-  const menu = state.confirmDeleteId === p.id
+  const actions = state.confirmDeleteId === p.id
     ? `<div class="confirm">
          <p>Supprimer définitivement ?</p>
          <div><button type="button" class="danger-solid" data-action="delete">Oui</button>
@@ -447,19 +552,14 @@ function cardHtml(p, isMenuOpen) {
        <a href="${esc(p.url)}" target="_blank" rel="noopener">Ouvrir le site</a>
        <button type="button" data-action="retry">Refaire la capture</button>
        <button type="button" class="danger" data-action="ask-delete">Supprimer</button>`;
+  const menu = `<details class="menu card-menu"${isMenuOpen || state.confirmDeleteId === p.id ? ' open' : ''}>
+      <summary aria-label="Actions pour ${esc(name)}">${icon('more-horizontal', 18)}</summary>
+      <div class="menu-panel">${actions}</div>
+    </details>`;
 
   return `<li class="card${state.highlightId === p.id ? ' is-highlighted' : ''}" data-id="${esc(p.id)}">
     ${shotHtml(p, { action: 'open', label: `Voir la fiche de ${name}` })}
-    <div class="caption">
-      <h2 class="site-name" title="${esc(p.page_title || name)}">${esc(name)}</h2>
-      <details class="menu"${isMenuOpen || state.confirmDeleteId === p.id ? ' open' : ''}>
-        <summary aria-label="Actions pour ${esc(name)}">⋯</summary>
-        <div class="menu-panel">${menu}</div>
-      </details>
-      <span class="site-url">${esc(p.url.replace(/^https?:\/\//, ''))}</span>
-      <span class="added">${dateFormat.format(new Date(p.created_at))}</span>
-      ${p.status === 'failed' && p.error ? `<p class="error-msg">${esc(p.error)}</p>` : ''}
-    </div>
+    ${captionHtml(p, { name, type: p.page_type || p.site_type, url: p.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''), menu })}
   </li>`;
 }
 
