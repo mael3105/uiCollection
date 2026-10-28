@@ -55,7 +55,7 @@
           </details>
         </div>
       </div>
-      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+      <div id="toast" class="toast" role="status" aria-live="polite" popover="manual"></div>
     </header>
 
     <main class="sheet">
@@ -76,6 +76,17 @@
   </div>
 
   <dialog id="detail" class="detail" aria-labelledby="detail-title"></dialog>
+  <dialog id="discard" class="discard" aria-labelledby="discard-title">
+    <form method="dialog">
+      <h2 id="discard-title">Modifications non enregistrées</h2>
+      <p>Si tu fermes la fiche maintenant, tes changements seront perdus.</p>
+      <div class="discard-actions">
+        <button value="" class="btn-quiet">Continuer l'édition</button>
+        <button value="discard" class="btn-quiet danger">Fermer sans enregistrer</button>
+        <button value="save" class="btn-primary" autofocus>Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
   <datalist id="site-types"></datalist>
   <datalist id="page-types"></datalist>
 </body>

@@ -84,4 +84,38 @@ describe('processPage', () => {
     expect(status).toBe('failed');
     expect(calls.update.at(-1)[1]).toMatchObject({ status: 'failed', error: 'storage down' });
   });
+
+  describe('analysis job', () => {
+    const analysisRow = { ...row, job: 'analysis', capture_warnings: ['ancienne alerte'] };
+
+    it('should store the analysis without replacing the thumbnail', async () => {
+      const { calls, deps } = fakes();
+
+      const status = await processPage(analysisRow, deps);
+
+      expect(status).toBe('ready');
+      expect(calls.upload).toHaveLength(0);
+      expect(calls.update).toEqual([['abc', {
+        status: 'ready',
+        job: 'capture',
+        analysis: captured.analysis,
+        capture_warnings: captured.warnings,
+        error: null,
+      }]]);
+    });
+
+    it('should keep the page ready with a warning when the page cannot be loaded', async () => {
+      const err = new Error('net::ERR_BLOCKED\nstack…');
+      const { calls, deps } = fakes({ captureResults: [err, err] });
+
+      const status = await processPage(analysisRow, deps);
+
+      expect(status).toBe('ready');
+      expect(calls.update).toEqual([['abc', {
+        status: 'ready',
+        job: 'capture',
+        capture_warnings: ['ancienne alerte', 'analyse impossible : net::ERR_BLOCKED'],
+      }]]);
+    });
+  });
 });

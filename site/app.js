@@ -5,14 +5,9 @@ import { clearPendingAdd, readPendingAdd, savePendingAdd } from './lib/pending-a
 import { createThumbnails } from './lib/thumbnails.js';
 import { filterPages } from './lib/filter-pages.js';
 import { domainOf, groupBySite } from './lib/stacks.js';
+import { statusLabel } from './lib/page-state.js';
 import { createDetail } from './detail.js';
 
-const STATUS_LABELS = {
-  pending: 'en attente',
-  processing: 'capture en cours',
-  ready: 'prête',
-  failed: 'échec',
-};
 const SIGNED_URL_TTL = 3600;
 
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -40,7 +35,9 @@ const detail = createDetail({
   thumbnails,
   getPage: (id) => state.pages.find((p) => p.id === id),
   retry: retryPage,
+  reanalyze: reanalyzePage,
   remove: deletePage,
+  toast,
   onClose: () => {
     // Fermée par Échap ou ✕ : revenir à l'entrée d'historique d'avant la fiche si c'est la nôtre
     if (!readRoute().page) return;
@@ -135,13 +132,20 @@ function setRoute(route) {
   }
 }
 
-function applyRoute() {
+async function applyRoute() {
   if (!state.started) return;
   const { site, page } = readRoute();
   state.site = site;
   render();
   if (page && detail.openId !== page && !detail.open(page)) setRoute({ site });
-  if (!page) detail.close();
+  if (!page && detail.openId) {
+    // Retour arrière du navigateur avec des modifications non enregistrées : la fiche reste si on annule
+    const openId = detail.openId;
+    if (!(await detail.requestClose())) {
+      state.detailPushed = true;
+      history.pushState(null, '', routeHash({ site, page: openId }));
+    }
+  }
 }
 
 // Un seul menu ouvert à la fois ; un clic ailleurs ou Échap le referme.
@@ -305,8 +309,7 @@ async function onGridClick(e) {
     setRoute({ site: state.site, page: id });
   } else if (action === 'retry') {
     target.closest('details').open = false;
-    await retryPage(id);
-    toast('Capture relancée');
+    if (await retryPage(id)) toast('Capture relancée');
   } else if (action === 'ask-delete') {
     state.confirmDeleteId = id;
     render();
@@ -319,9 +322,18 @@ async function onGridClick(e) {
   }
 }
 
+/** @returns {Promise<boolean>} vrai si la capture est relancée */
 async function retryPage(id) {
-  const { error } = await db.from('pages').update({ status: 'pending', error: null }).eq('id', id);
+  const { error } = await db.from('pages').update({ status: 'pending', job: 'capture', error: null }).eq('id', id);
   if (error) toast(`Relance impossible : ${error.message}`, 'error');
+  return !error;
+}
+
+/** Recalcule l'analyse sans remplacer la vignette. @returns {Promise<boolean>} */
+async function reanalyzePage(id) {
+  const { error } = await db.from('pages').update({ status: 'pending', job: 'analysis', error: null }).eq('id', id);
+  if (error) toast(`Relance impossible : ${error.message}`, 'error');
+  return !error;
 }
 
 /** @returns {Promise<boolean>} vrai si la page est supprimée */
@@ -396,7 +408,8 @@ const nameOf = (p) => p.display_name || p.site_name || hostOf(p.url);
 function shotHtml(p, { action, label }) {
   const thumb = thumbnails.urlFor(p);
   const host = hostOf(p.url);
-  const chip = p.status === 'ready' ? '' : `<span class="chip chip-${p.status}">${STATUS_LABELS[p.status]}</span>`;
+  const status = statusLabel(p);
+  const chip = status ? `<span class="chip chip-${p.status}">${status}</span>` : '';
   const image = thumb
     ? `<img src="${esc(thumb)}" alt="" loading="lazy">`
     : `<span class="shot-placeholder">${esc(host)}</span>`;
@@ -457,13 +470,22 @@ function closeMenus(except) {
 }
 
 let toastTimer;
-/** @param {'info' | 'success' | 'error'} kind */
+/**
+ * Le toast est un popover : il passe au-dessus de la fiche ouverte, sous son en-tête.
+ * @param {'info' | 'success' | 'error'} kind
+ */
 function toast(message, kind = 'info') {
   const el = $('toast');
-  el.textContent = message;
+  const anchor = $('detail').open ? $('detail').querySelector('.detail-head') : document.querySelector('.bar');
+  const box = anchor.getBoundingClientRect();
+  el.style.top = `${box.bottom + 12}px`;
+  el.style.left = `${box.left + box.width / 2}px`;
   el.classList.toggle('is-success', kind === 'success');
   el.classList.toggle('is-error', kind === 'error');
-  el.hidden = false;
+  // Remontré à chaque fois pour rester au-dessus d'une fenêtre ouverte entre-temps
+  if (el.matches(':popover-open')) el.hidePopover();
+  el.showPopover();
+  el.textContent = message;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, kind === 'error' ? 6000 : 3000);
+  toastTimer = setTimeout(() => el.hidePopover(), kind === 'error' ? 6000 : 3000);
 }

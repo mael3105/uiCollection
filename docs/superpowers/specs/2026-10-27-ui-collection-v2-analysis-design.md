@@ -36,6 +36,15 @@ Les pages d'un même domaine (sans `www.`) forment une pile dès qu'il y en a de
 - Lecture : capture, URL, palette, typographies, technologies, plan des titres, avertissements de capture ; DESIGN.md en aperçu avec « Copier » et « Télécharger ».
 - Actions : ouvrir le site, refaire la capture, supprimer.
 
+## 5. Retours du 28/10/2026
+
+- « Enregistrer » n'apparaît qu'en cas de modification, dans un pied de panneau fixe (avec « Annuler »).
+- Fermer la fiche (✕, Échap, clic sur le voile, retour du navigateur) avec des modifications non enregistrées ouvre une confirmation : continuer, fermer sans enregistrer, enregistrer.
+- Les confirmations de la fiche passent par le toast principal (popover, au-dessus du panneau, sous son en-tête).
+- « Relancer l'analyse » (colonne `pages.job = 'analysis'`) : le robot recharge la page et ne remplace que l'analyse et les avertissements ; la vignette et le nom restent. Un échec laisse la page prête, avec un avertissement. Proposé pour toute page qui a une vignette, pas seulement celles sans analyse (décision de Claude : utile après une amélioration de l'extracteur).
+- Styles : « + Ajouter un style » ouvre un champ et un bouton « Ajouter » (Entrée aussi) ; le champ reste ouvert pour en saisir plusieurs, Échap ou le quitter vide le replie.
+- « Relancer l'analyse » et « Refaire la capture » sont dans l'en-tête de la fiche, désactivés pendant un traitement ; « Supprimer la page » reste en bas.
+
 ## Partage à des agents : pistes (non construites)
 
 1. **Export de sélection** : cocher des pages, télécharger un dossier (un DESIGN.md par page, les captures, un `INDEX.md` qui les présente). Le plus simple, marche avec tout agent.
