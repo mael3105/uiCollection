@@ -74,3 +74,4 @@ Proposition automatique de la typologie, captures mobiles, export pour agents (i
 - Types de site et de page : liste de suggestions maison sous le champ (le `<datalist>` natif s'affichait décalé dans le panneau) ; la saisie libre reste possible.
 - Tags : colonne `tags text[]` (30 au plus, 40 caractères chacun), champ multi-valeurs qui suggère les tags déjà posés dans la collection et propose « Ajouter le tag … » pour un nouveau ; repris dans le DESIGN.md.
 - Analyse : un clic sur une tuile de couleur copie sa valeur hexadécimale.
+- Filtre « Tag » dans la bande grise, après Style.

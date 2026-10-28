@@ -468,6 +468,12 @@ function render() {
   refreshThumbnails();
 }
 
+const EMPTY_FACET = {
+  tech: "Rien de relevé par l'analyse pour l'instant.",
+  color: "Rien de relevé par l'analyse pour l'instant.",
+  tag: 'Aucun tag pour l’instant : ajoute-en depuis une fiche.',
+};
+
 function renderFacets(pages) {
   const openKey = document.querySelector('#facets details[open]')?.dataset.facet;
   $('facets').innerHTML = FACETS.map(({ key, label }) => {
@@ -478,7 +484,7 @@ function renderFacets(pages) {
           ${key === 'color' ? `<span class="facet-swatch" style="background:${FAMILY_SWATCH[o.value]}"></span>` : ''}
           <span class="facet-value">${esc(o.value)}</span><span class="facet-count">${o.count}</span>
         </button>`).join('')
-      : `<p class="facet-empty">${key === 'tech' || key === 'color' ? "Rien de relevé par l'analyse pour l'instant." : 'Aucune page renseignée : complète-les depuis leur fiche.'}</p>`;
+      : `<p class="facet-empty">${esc(EMPTY_FACET[key] ?? 'Aucune page renseignée : complète-les depuis leur fiche.')}</p>`;
     const colors = key === 'color' && !value
       ? `<span class="facet-bars" aria-hidden="true">${['bleu', 'orange', 'vert'].map((f) => `<span style="background:${FAMILY_SWATCH[f]}"></span>`).join('')}</span>`
       : '';

@@ -1,9 +1,10 @@
-// Filtres de la collection : ce que la personne a saisi dans la fiche (types, styles)
+// Filtres de la collection : ce que la personne a saisi dans la fiche (types, styles, tags)
 // et ce que l'analyse a relevé (technologies, famille de la couleur de marque).
 export const FACETS = [
   { key: 'site_type', label: 'Type de site' },
   { key: 'page_type', label: 'Type de page' },
   { key: 'style', label: 'Style' },
+  { key: 'tag', label: 'Tag' },
   { key: 'tech', label: 'Technologie' },
   { key: 'color', label: 'Couleur' },
 ];
@@ -44,6 +45,7 @@ export function colorFamily(hex) {
 export function valuesOf(page, key) {
   if (key === 'site_type' || key === 'page_type') return page[key] ? [page[key]] : [];
   if (key === 'style') return page.styles ?? [];
+  if (key === 'tag') return page.tags ?? [];
   if (key === 'tech') return page.analysis?.tech ?? [];
   if (key === 'color') {
     const colors = page.analysis?.colors;

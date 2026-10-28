@@ -38,6 +38,8 @@ describe('valuesOf', () => {
     expect(valuesOf(p, 'page_type')).toEqual([]);
     expect(valuesOf(p, 'style')).toEqual(['Minimal', 'Tech']);
     expect(valuesOf(p, 'tech')).toEqual(['Next.js']);
+    expect(valuesOf({ ...p, tags: ['bento', 'grille'] }, 'tag')).toEqual(['bento', 'grille']);
+    expect(valuesOf(p, 'tag')).toEqual([]);
   });
 });
 
