@@ -21,6 +21,11 @@ describe('hasUnsavedChanges', () => {
     expect(hasUnsavedChanges(saved, { ...same, notes: 'Belle grille' })).toBe(true);
   });
 
+  it('should detect an added tag and ignore the order of tags', () => {
+    expect(hasUnsavedChanges(saved, { ...same, tags: ['grille'] })).toBe(true);
+    expect(hasUnsavedChanges({ ...saved, tags: ['a', 'b'] }, { ...same, tags: ['b', 'a'] })).toBe(false);
+  });
+
   it('should detect an added style', () => {
     expect(hasUnsavedChanges(saved, { ...same, styles: ['Tech', 'Minimal', 'Luxe'] })).toBe(true);
   });

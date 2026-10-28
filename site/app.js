@@ -12,6 +12,7 @@ import { createDetail } from './detail.js';
 
 const SIGNED_URL_TTL = 3600;
 const DENSITY_KEY = 'uic-density';
+const THEME_KEY = 'uic-theme';
 
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
@@ -39,6 +40,7 @@ const detail = createDetail({
   db,
   thumbnails,
   getPage: (id) => state.pages.find((p) => p.id === id),
+  getPages: () => state.pages,
   retry: retryPage,
   reanalyze: reanalyzePage,
   remove: deletePage,
@@ -89,6 +91,27 @@ $('login-form').addEventListener('submit', async (e) => {
 });
 
 $('logout').addEventListener('click', () => db.auth.signOut());
+
+// Thème : Auto suit le système ; Clair et Sombre sont gardés dans ce navigateur (lus aussi par index.html)
+document.querySelector('.theme-choice').addEventListener('click', (e) => {
+  const choice = e.target.closest('[data-theme-choice]')?.dataset.themeChoice;
+  if (!choice) return;
+  if (choice === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = choice;
+  try {
+    if (choice === 'auto') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, choice);
+  } catch { /* choix perdu au rechargement */ }
+  showThemeChoice();
+});
+showThemeChoice();
+
+function showThemeChoice() {
+  const current = document.documentElement.dataset.theme ?? 'auto';
+  for (const button of document.querySelectorAll('[data-theme-choice]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.themeChoice === current));
+  }
+}
 
 $('add-form').addEventListener('submit', async (e) => {
   e.preventDefault();

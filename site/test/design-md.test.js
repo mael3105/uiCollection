@@ -14,6 +14,7 @@ const page = {
   site_type: 'SaaS',
   page_type: 'Pricing',
   styles: ['Tech'],
+  tags: ['grille tarifaire', 'toggle annuel'],
   notes: 'Grille tarifaire en trois colonnes.',
   analysis,
 };
@@ -22,6 +23,10 @@ const frontMatter = (md) => parse(md.split('---\n')[1]);
 const headings = (md) => md.split('\n').filter((l) => l.startsWith('## ')).map((l) => l.slice(3));
 
 describe('renderDesignMd', () => {
+  it('should list the tags in the overview', () => {
+    expect(renderDesignMd(page)).toContain('- **Tags** : grille tarifaire, toggle annuel');
+  });
+
   it('should start with valid YAML front matter holding the measured tokens', () => {
     const fm = frontMatter(renderDesignMd(page));
 

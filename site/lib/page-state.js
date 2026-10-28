@@ -9,7 +9,7 @@ const LABELS = {
 export function hasUnsavedChanges(page, values) {
   if (EDITABLE_TEXT.some((key) => (page[key] ?? null) !== (values[key] ?? null))) return true;
   const sorted = (list) => [...(list ?? [])].sort().join('\n');
-  return sorted(page.styles) !== sorted(values.styles);
+  return sorted(page.styles) !== sorted(values.styles) || sorted(page.tags) !== sorted(values.tags);
 }
 
 /** Libellé de la pastille d'état, ou null pour une page prête. */

@@ -85,6 +85,7 @@ function overview(page, a) {
     ['Type de site', page.site_type],
     ['Type de page', page.page_type],
     ['Styles', page.styles?.length ? page.styles.join(', ') : null],
+    ['Tags', page.tags?.length ? page.tags.join(', ') : null],
     ['Thème', a && `${a.layout.theme}${a.layout.heroMedia ? ', haut de page sur image ou vidéo' : ''}`],
     ['Polices chargées', a?.fonts?.length ? a.fonts.join(', ') : null],
     ['Technologies détectées', a?.tech?.length ? a.tech.join(', ') : null],

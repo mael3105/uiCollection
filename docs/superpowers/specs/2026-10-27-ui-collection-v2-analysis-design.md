@@ -66,3 +66,11 @@ Proposition automatique de la typologie, captures mobiles, export pour agents (i
 - Fiche : URL sans « ↗ », bouton pour la copier ; nuancier en grands carrés ; typographie et mesures en lignes à filets.
 - Icônes : Lucide (licence ISC), recopiées en ligne dans `site/lib/icons.js`.
 - Extracteur : pas de `text-muted` qui ne contraste pas avec le fond (texte blanc d'un bandeau noir) ; pas de rôle `display` quand le plus grand texte n'est pas au moins 1,25 × le corps de texte.
+
+## 7. Retours du 29/10/2026
+
+- Menu du compte : thème Auto (système), Clair ou Sombre, gardé dans le navigateur et posé avant le premier rendu.
+- Nouvelle liste des types de site (`site/lib/taxonomy.js`) ; les valeurs existantes renommées par la migration `20261029120000_tags_site_types.sql` (Corporate, Média, Hospitality, SaaS, eCommerce, Institution).
+- Types de site et de page : liste de suggestions maison sous le champ (le `<datalist>` natif s'affichait décalé dans le panneau) ; la saisie libre reste possible.
+- Tags : colonne `tags text[]` (30 au plus, 40 caractères chacun), champ multi-valeurs qui suggère les tags déjà posés dans la collection et propose « Ajouter le tag … » pour un nouveau ; repris dans le DESIGN.md.
+- Analyse : un clic sur une tuile de couleur copie sa valeur hexadécimale.

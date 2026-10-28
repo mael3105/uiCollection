@@ -12,6 +12,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Thème choisi dans le menu du compte, posé avant le premier rendu pour éviter un flash
+    try {
+      const theme = localStorage.getItem('uic-theme');
+      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+    } catch {}
+  </script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -50,6 +57,14 @@
           <summary aria-label="Compte"><span id="account-initial" class="account-initial"></span></summary>
           <div class="menu-panel">
             <p id="account-email" class="account-email"></p>
+            <div class="theme-choice" role="group" aria-labelledby="theme-label">
+              <span id="theme-label">Thème</span>
+              <div class="segmented">
+                <button type="button" data-theme-choice="auto" aria-pressed="true">Auto</button>
+                <button type="button" data-theme-choice="light" aria-pressed="false">Clair</button>
+                <button type="button" data-theme-choice="dark" aria-pressed="false">Sombre</button>
+              </div>
+            </div>
             <button id="logout" type="button">Se déconnecter</button>
           </div>
         </details>
@@ -106,7 +121,5 @@
       </div>
     </form>
   </dialog>
-  <datalist id="site-types"></datalist>
-  <datalist id="page-types"></datalist>
 </body>
 </html>

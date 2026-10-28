@@ -5,21 +5,28 @@ import { hasUnsavedChanges, statusLabel } from './lib/page-state.js';
 import { domainOf } from './lib/stacks.js';
 import { icon } from './lib/icons.js';
 import { PAGE_TYPES, SITE_TYPES, STYLES } from './lib/taxonomy.js';
+import { existingTags } from './lib/suggest.js';
+import { createCombos, selectedTags, tagChipHtml } from './combobox.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /**
  * @param {{ db: object, thumbnails: object, getPage: (id: string) => object | undefined,
  *   retry: (id: string) => Promise<boolean>, reanalyze: (id: string) => Promise<boolean>,
- *   remove: (id: string) => Promise<boolean>, toast: (message: string, kind?: string) => void,
+ *   getPages: () => object[], remove: (id: string) => Promise<boolean>, toast: (message: string, kind?: string) => void,
  *   onClose: () => void }} deps
  */
-export function createDetail({ db, thumbnails, getPage, retry, reanalyze, remove, toast, onClose }) {
+export function createDetail({ db, thumbnails, getPage, getPages, retry, reanalyze, remove, toast, onClose }) {
   const dialog = document.getElementById('detail');
   const discard = document.getElementById('discard');
-  for (const [id, values] of [['site-types', SITE_TYPES], ['page-types', PAGE_TYPES]]) {
-    document.getElementById(id).innerHTML = values.map((v) => `<option value="${esc(v)}"></option>`).join('');
-  }
+  // Listes proposées, complétées par les valeurs libres déjà saisies dans la collection
+  const used = (key) => getPages().map((p) => p[key]).filter(Boolean);
+  createCombos(dialog, {
+    optionsFor: (key) => (key === 'tags'
+      ? existingTags(getPages())
+      : [...new Set([...(key === 'site_type' ? SITE_TYPES : PAGE_TYPES), ...used(key)])]),
+    onChange: onFormChange,
+  });
   let currentId = null;
   let isConfirmingDelete = false;
   let isDirty = false;
@@ -125,6 +132,7 @@ export function createDetail({ db, thumbnails, getPage, retry, reanalyze, remove
       site_type: form.elements.site_type.value.trim() || null,
       page_type: form.elements.page_type.value.trim() || null,
       styles: [...form.querySelectorAll('.style-chip[aria-pressed="true"]')].map((b) => b.dataset.style),
+      tags: selectedTags(form),
       notes: form.elements.notes.value.trim() || null,
     };
   }
@@ -158,6 +166,16 @@ export function createDetail({ db, thumbnails, getPage, retry, reanalyze, remove
     if (chip) {
       chip.setAttribute('aria-pressed', String(chip.getAttribute('aria-pressed') !== 'true'));
       onFormChange();
+      return;
+    }
+    const hex = e.target.closest('[data-copy-hex]')?.dataset.copyHex;
+    if (hex) {
+      try {
+        await navigator.clipboard.writeText(hex);
+        toast(`${hex} copié`, 'success');
+      } catch {
+        toast('Copie impossible : sélectionne la valeur à la main.', 'error');
+      }
       return;
     }
     const action = e.target.closest('[data-detail]')?.dataset.detail;
@@ -291,13 +309,13 @@ function shellHtml(page) {
           <input id="detail-name" name="display_name" maxlength="200" value="${esc(page.display_name)}" placeholder="${esc(page.site_name || domainOf(page.url))}">
         </div>
         <div class="field-pair">
-          <div class="form-field">
+          <div class="form-field combo" data-combo="site_type">
             <label for="detail-site-type">Type de site</label>
-            <input id="detail-site-type" name="site_type" list="site-types" maxlength="60" value="${esc(page.site_type)}" autocomplete="off">
+            ${comboInputHtml('detail-site-type', 'site_type', page.site_type)}
           </div>
-          <div class="form-field">
+          <div class="form-field combo" data-combo="page_type">
             <label for="detail-page-type">Type de page</label>
-            <input id="detail-page-type" name="page_type" list="page-types" maxlength="60" value="${esc(page.page_type)}" autocomplete="off">
+            ${comboInputHtml('detail-page-type', 'page_type', page.page_type)}
           </div>
         </div>
         <fieldset class="styles-field">
@@ -310,6 +328,15 @@ function shellHtml(page) {
             <button type="button" class="style-confirm" data-detail="style-add">Ajouter</button>
           </span>
         </fieldset>
+        <div class="form-field is-wide combo" data-combo="tags">
+          <label for="detail-tags">Tags</label>
+          <div class="tags-box">
+            <span class="tag-list">${(page.tags ?? []).map(tagChipHtml).join('')}</span>
+            <input id="detail-tags" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="detail-tags-list"
+              maxlength="40" autocomplete="off" placeholder="Ajouter un tag">
+          </div>
+          <ul id="detail-tags-list" class="combo-list" role="listbox" aria-label="Tags" hidden></ul>
+        </div>
         <div class="form-field is-wide">
           <label for="detail-notes">Notes</label>
           <textarea id="detail-notes" name="notes" rows="3" maxlength="10000" placeholder="Ce qui t'inspire dans cette page">${esc(page.notes)}</textarea>
@@ -350,6 +377,12 @@ function toolsHtml(page) {
   return `${reanalyze}<button type="button" class="btn-secondary" data-detail="retry"${disabled}>Refaire la capture</button>`;
 }
 
+function comboInputHtml(id, name, value) {
+  return `<input id="${id}" name="${name}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list"
+      maxlength="60" value="${esc(value)}" autocomplete="off">
+    <ul id="${id}-list" class="combo-list" role="listbox" hidden></ul>`;
+}
+
 function styleChipHtml(style, isPressed) {
   return `<button type="button" class="style-chip" data-style="${esc(style)}" aria-pressed="${isPressed}">${esc(style)}</button>`;
 }
@@ -367,7 +400,7 @@ function analysisHtml(page) {
     return `<h3>Analyse de design</h3><p class="detail-note">${esc(note)}</p>${warnings}`;
   }
   const colors = Object.entries(a.colors).map(([role, hex]) => `<li>
-      <span class="swatch" style="background:${esc(hex)}"></span>
+      <button type="button" class="swatch" style="background:${esc(hex)}" data-copy-hex="${esc(hex)}" aria-label="Copier ${esc(hex)} (${esc(role)})" title="Copier ${esc(hex)}"></button>
       <span class="swatch-role">${esc(role)}</span><code>${esc(hex)}</code></li>`).join('');
   const type = [
     ['Polices', a.fonts.join(', '), true],
