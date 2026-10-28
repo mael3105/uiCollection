@@ -69,7 +69,7 @@ b, strong { font-weight: 600; }
 }
 
 .wordmark {
-  font: 700 22px/1 var(--font);
+  font: 700 28px/1 var(--font);
   letter-spacing: -0.04em;
   margin: 0;
 }
