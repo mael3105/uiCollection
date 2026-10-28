@@ -99,6 +99,19 @@ export function collectDesign() {
   const meta = (selector, attr = 'content') => document.querySelector(selector)?.getAttribute(attr) || null;
 
   const generator = meta('meta[name=generator]') ?? '';
+  // Icône du site : SVG, sinon la plus grande déclarée ; /favicon.ico en dernier recours
+  const favicon = () => {
+    const size = (link) => {
+      if (/svg/.test(link.type) || /\.svg(\?|$)/.test(link.href) || link.sizes?.value === 'any') return 1000;
+      const sizes = (link.sizes?.value ?? '').split(/\s+/).map((v) => parseInt(v, 10)).filter(Boolean);
+      return sizes.length ? Math.max(...sizes) : link.rel.includes('apple') ? 180 : 16;
+    };
+    const best = [...document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')]
+      .filter((link) => link.href)
+      .sort((a, b) => size(b) - size(a))[0];
+    if (best) return best.href;
+    return /^https?:$/.test(location.protocol) ? `${location.origin}/favicon.ico` : null;
+  };
   const has = (selector) => !!document.querySelector(selector);
   const tech = [
     ['Next.js', () => !!window.__NEXT_DATA__ || has('#__next, script[src*="/_next/"]')],
@@ -197,6 +210,7 @@ export function collectDesign() {
       ogImage: meta('meta[property="og:image"]'),
       canonical: meta('link[rel=canonical]', 'href'),
       generator: generator || null,
+      favicon: favicon(),
     },
     tech,
     layout: {

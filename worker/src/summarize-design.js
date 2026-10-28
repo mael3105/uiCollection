@@ -10,6 +10,8 @@ const SCALE_NAMES = {
 };
 const SPACING_NAMES = ['xs', 'sm', 'md', 'lg', 'xl', '2xl'];
 const HEADER_HEIGHT = 120;
+const MIN_MUTED_CONTRAST = 0.2;
+const MIN_DISPLAY_RATIO = 1.25;
 const ICON_FONTS = /awesome|icon|icomoon|material symbols|glyph|fallback/i;
 
 export function summarizeDesign(raw) {
@@ -69,7 +71,8 @@ function colorRoles(raw) {
     background,
     surface: surfaces.find((c) => c !== background && neutral(c)),
     text,
-    'text-muted': texts.find((c) => c !== text && neutral(c)),
+    // Secondaire : moins contrasté que le texte, mais lisible sur ce même fond (pas le blanc d'un bandeau noir)
+    'text-muted': texts.find((c) => c !== text && neutral(c) && contrast(c) >= MIN_MUTED_CONTRAST && contrast(c) < contrast(text)),
     primary,
     accent,
     border: weighted(raw.borders).map(flat)[0],
@@ -104,6 +107,9 @@ function typographyRoles(roles) {
   for (const [role, style] of Object.entries(roles)) {
     if (style) out[role] = typographyToken(style);
   }
+  // Une page sans grand titre (catalogue, fil d'Ariane en h1) n'a pas de style « display »
+  const bodySize = parseFloat(out.body?.fontSize);
+  if (out.display && parseFloat(out.display.fontSize) < bodySize * MIN_DISPLAY_RATIO) delete out.display;
   return out;
 }
 

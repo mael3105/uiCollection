@@ -134,6 +134,16 @@ describe('summarizeDesign', () => {
     expect(colors['text-muted']).toBe('#d0d6e0');
   });
 
+  it('should not call muted a text that sits on another surface, such as white text on a dark banner', () => {
+    const { colors } = summarizeDesign(raw({
+      surfaces: [['rgb(248, 248, 248)', 200], ['rgb(34, 34, 34)', 2]],
+      texts: [['rgb(34, 34, 34)', 965], ['rgb(255, 255, 255)', 10]],
+    }));
+
+    expect(colors.text).toBe('#222222');
+    expect(colors).not.toHaveProperty('text-muted');
+  });
+
   it('should accept a muted brand color such as gold', () => {
     const { colors } = summarizeDesign(raw({ actions: [{ ...raw().actions[0], bg: 'rgb(162, 145, 94)' }] }));
 
@@ -159,6 +169,15 @@ describe('summarizeDesign', () => {
     expect(typography.body.lineHeight).toBe(1.6);
     expect(typography.label.lineHeight).toBeUndefined();
     expect(typography).not.toHaveProperty('title');
+  });
+
+  it('should leave out the display role when the largest text is no bigger than the body', () => {
+    const { typography } = summarizeDesign(raw({
+      typography: { ...raw().typography, display: typo('"Inter Tight"', '14px', '600'), body: typo('"Inter Tight"', '14px', '300', '21px') },
+    }));
+
+    expect(typography).not.toHaveProperty('display');
+    expect(typography.body.fontSize).toBe('14px');
   });
 
   it('should build rounded and spacing scales from the most frequent values', () => {

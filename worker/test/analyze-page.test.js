@@ -54,6 +54,7 @@ describe('analyzePage', () => {
     expect(analysis.meta).toMatchObject({ description: 'Pages de vente qui convertissent', lang: 'fr', themeColor: '#0069ff', generator: 'WordPress 6.6' });
     expect(analysis.tech).toEqual(expect.arrayContaining(['WordPress', 'GSAP']));
     expect(analysis.layout).toMatchObject({ contentWidth: 1200, theme: 'clair', hasVideo: false, hasCanvas: false });
+    expect(analysis.meta.favicon).toMatch(/\/icons\/acme\.svg$/);
     expect(analysis.headings).toEqual([{ level: 1, text: 'Des pages qui convertissent' }, { level: 2, text: 'Tarifs simples' }]);
   });
 });
