@@ -843,3 +843,4 @@ body::before {
 /* Tuile de couleur : un clic copie la valeur */
 button.swatch { width: 100%; padding: 0; border: 0; cursor: copy; }
 button.swatch:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent), 0 0 0 2px var(--ink); }
+.combo[data-combo="page_type"] .combo-list { left: auto; right: 0; }
